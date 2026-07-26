@@ -147,10 +147,16 @@ Pushing to `main` runs three workflows:
 - **CI** — lint, format check, typecheck, unit tests with coverage, build, bundle budget, E2E
 - **Deploy** — builds and publishes to GitHub Pages at `prompt-god.bossincrypto.dev`
 - **Release** — release-please opens a release PR from conventional commits; merging it tags a
-  release and attaches a self-contained `.tar.gz` and `.zip` of the built PWA
+  release and attaches a `.tar.gz` and `.zip` of the built PWA
 
 The site is served from a custom domain, so `base` is `/` and `404.html` is a copy of `index.html`
 so client-side deep links resolve.
+
+The release archives are root builds: extract one and serve the extracted directory as the web
+root. They will not work from a subdirectory, because `base`, the manifest's `scope` and
+`start_url`, and the service-worker registration are all rooted at `/`. To host under a subpath,
+rebuild with `BASE_PATH=/subpath/ npm run build:only`. Each archive carries a `SERVING.md` saying
+the same thing.
 
 > Lighthouse removed its PWA category in v12, so there is no "PWA score" to chase. Installability is
 > a manifest concern: HTTPS, a linked manifest with `name`, `start_url`, `display` and both 192px

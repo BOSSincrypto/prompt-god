@@ -124,15 +124,19 @@ export default defineConfig({
       registerType: 'prompt',
       injectRegister: null,
       manifest: {
-        id: '/',
+        // Derived from `base`, not hardcoded: a subpath build
+        // (`BASE_PATH=/prompt-god/`) rewrites every asset path, and a manifest
+        // still claiming the domain root would scope the installed app to a
+        // place its files are not.
+        id: base,
         name: 'Prompt God — Prompt Engineering Trainer',
         short_name: 'Prompt God',
         description:
           'Learn to write prompts that actually work — for Claude, GPT, Gemini, Llama and more. Offline-first, private, free.',
         lang: 'en',
         dir: 'ltr',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone'],
         orientation: 'any',
@@ -150,9 +154,9 @@ export default defineConfig({
           },
         ],
         shortcuts: [
-          { name: 'Prompt Lab', url: '/lab', description: 'Analyze and improve a prompt' },
-          { name: 'Learn', url: '/learn', description: 'Continue the course' },
-          { name: 'Patterns', url: '/patterns', description: 'Browse the pattern library' },
+          { name: 'Prompt Lab', url: `${base}lab`, description: 'Analyze and improve a prompt' },
+          { name: 'Learn', url: `${base}learn`, description: 'Continue the course' },
+          { name: 'Patterns', url: `${base}patterns`, description: 'Browse the pattern library' },
         ],
       },
       workbox: {
@@ -160,7 +164,7 @@ export default defineConfig({
         // Content chunks are small; precaching everything makes the whole
         // course work offline after the first visit.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        navigateFallback: '/index.html',
+        navigateFallback: `${base}index.html`,
         navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,

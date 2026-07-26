@@ -52,10 +52,33 @@ jobs:
         run: npm run build:only
 
       - name: Package offline bundle
-        # A self-contained copy of the PWA so anyone can host or run it
-        # locally without a build toolchain.
+        # A built copy of the PWA so it can be hosted without a toolchain.
+        #
+        # This is a ROOT build: `base` is `/`, and the manifest's scope,
+        # start_url and the service-worker registration are all rooted there
+        # too. Served from a subdirectory every asset 404s and the app never
+        # leaves its boot placeholder, so the constraint ships inside the
+        # archive rather than being something a user discovers.
         run: |
           cp dist/index.html dist/404.html
+          cat > dist/SERVING.md <<'DOC'
+          # Serving this build
+
+          This archive is a root build. Extract it and serve the extracted
+          directory as the web root:
+
+              python3 -m http.server 8080     # then open http://localhost:8080
+
+          It will NOT work served from a subdirectory (`https://host/prompt-god/`)
+          — `base`, the manifest `scope` and `start_url`, and the service-worker
+          registration are all rooted at `/`. To host under a subpath, rebuild
+          from source with that path:
+
+              BASE_PATH=/prompt-god/ npm run build:only
+
+          For a single-page app, point unknown paths at `404.html` (a copy of
+          `index.html`) so deep links resolve.
+          DOC
           tar -czf "prompt-god-${{ needs.release-please.outputs.tag }}.tar.gz" -C dist .
           (cd dist && zip -qr "../prompt-god-${{ needs.release-please.outputs.tag }}.zip" .)
 
