@@ -97,21 +97,29 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
     onClose()
   }
 
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      onClose()
-    } else if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      setActive((value) => (items.length === 0 ? 0 : (value + 1) % items.length))
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      setActive((value) => (items.length === 0 ? 0 : (value - 1 + items.length) % items.length))
-    } else if (event.key === 'Enter') {
-      event.preventDefault()
-      go(items[active])
+  // Bound to the window, not to the dialog element. Focus can legitimately sit
+  // on <body> — after a click on a non-focusable part of the panel, or a
+  // tab-out — and a handler on the dialog never sees the key in that case, so
+  // Escape silently stopped closing the palette.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        setActive((value) => (items.length === 0 ? 0 : (value + 1) % items.length))
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        setActive((value) => (items.length === 0 ? 0 : (value - 1 + items.length) % items.length))
+      } else if (event.key === 'Enter') {
+        event.preventDefault()
+        go(items[active])
+      }
     }
-  }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
 
   // Section headers are decided once, up front, rather than by mutating a
   // cursor while mapping — the latter reads as a render-time side effect.
@@ -133,7 +141,6 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
         aria-label={t('common.search')}
         className="w-full max-w-xl animate-rise overflow-hidden rounded-card border border-line bg-surface shadow-card"
         onClick={(event) => event.stopPropagation()}
-        onKeyDown={onKeyDown}
       >
         <div className="flex items-center gap-3 border-b border-line px-4">
           <Icon name="search" size={17} className="shrink-0 text-subtle" />

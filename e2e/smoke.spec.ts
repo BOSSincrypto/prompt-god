@@ -105,6 +105,22 @@ test('the command palette opens on the keyboard shortcut', async ({ page }) => {
   await expect(page.getByRole('dialog')).toHaveCount(0)
 })
 
+test('the command palette closes on Escape even when focus has left the input', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: /search|поиск/i })).toBeVisible()
+  await page.getByRole('button', { name: /search|поиск/i }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+
+  // Focus can legitimately end up on <body>. A key handler bound to the dialog
+  // element never sees the key in that case.
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
 test('the command palette finds a lesson and navigates to it', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('button', { name: /search|поиск/i })).toBeVisible()
