@@ -5,7 +5,7 @@ import { RULE_COUNT } from '@/engine/analyzer/index.ts'
 import { useI18n } from '@/i18n/index.tsx'
 import { levelFromXp, useProgress } from '@/store/progress.ts'
 import { Icon, type IconName } from '@/ui/Icon.tsx'
-import { Badge, Button, Card, Page, ProgressBar } from '@/ui/primitives.tsx'
+import { Badge, Button, Card, LinkButton, Page, ProgressBar } from '@/ui/primitives.tsx'
 
 /**
  * `beforeinstallprompt` is Chromium-only and absent from the DOM lib, so the
@@ -81,11 +81,9 @@ function ContinueCard() {
             )}
           </div>
         </div>
-        <Link to="/learn">
-          <Button variant="primary" size="sm" iconRight="arrowRight">
-            {t('common.continue')}
-          </Button>
-        </Link>
+        <LinkButton to="/learn" variant="primary" size="sm" iconRight="arrowRight">
+          {t('common.continue')}
+        </LinkButton>
       </div>
       <ProgressBar
         value={completed.length}
@@ -133,16 +131,12 @@ export default function HomePage() {
           <p className="mt-5 max-w-2xl text-pretty text-lg text-muted">{t('home.heroBody')}</p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/learn">
-              <Button variant="primary" size="lg" iconRight="arrowRight">
-                {t('home.ctaPrimary')}
-              </Button>
-            </Link>
-            <Link to="/lab">
-              <Button size="lg" icon="flask">
-                {t('home.ctaSecondary')}
-              </Button>
-            </Link>
+            <LinkButton to="/learn" variant="primary" size="lg" iconRight="arrowRight">
+              {t('home.ctaPrimary')}
+            </LinkButton>
+            <LinkButton to="/lab" size="lg" icon="flask">
+              {t('home.ctaSecondary')}
+            </LinkButton>
             {installEvent && (
               <Button size="lg" variant="ghost" icon="download" onClick={install}>
                 {t('pwa.install')}

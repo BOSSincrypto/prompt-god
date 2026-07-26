@@ -5,7 +5,16 @@ import { useContent } from '@/content/useContent.ts'
 import { useI18n } from '@/i18n/index.tsx'
 import { useProgress } from '@/store/progress.ts'
 import { Icon } from '@/ui/Icon.tsx'
-import { Badge, Button, Card, EmptyState, Page, RouteFallback, Section } from '@/ui/primitives.tsx'
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  LinkButton,
+  Page,
+  RouteFallback,
+  Section,
+} from '@/ui/primitives.tsx'
 import { Blocks } from './Blocks.tsx'
 import { ExerciseCard } from './ExerciseCard.tsx'
 
@@ -57,9 +66,9 @@ export default function LessonPage() {
           icon="book"
           title={t('learn.notFound')}
           action={
-            <Link to="/learn">
-              <Button icon="arrowLeft">{t('learn.backToCourse')}</Button>
-            </Link>
+            <LinkButton to="/learn" icon="arrowLeft">
+              {t('learn.backToCourse')}
+            </LinkButton>
           }
         />
       </Page>
@@ -161,11 +170,9 @@ export default function LessonPage() {
       )}
 
       <div className="mt-10 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-6">
-        <Link to="/learn">
-          <Button icon="arrowLeft" variant="ghost">
-            {t('learn.backToCourse')}
-          </Button>
-        </Link>
+        <LinkButton to="/learn" icon="arrowLeft" variant="ghost">
+          {t('learn.backToCourse')}
+        </LinkButton>
         <Button variant="primary" iconRight="arrowRight" onClick={finish} lang={locale}>
           {next ? t('learn.nextLesson') : t('learn.finishTrack')}
         </Button>

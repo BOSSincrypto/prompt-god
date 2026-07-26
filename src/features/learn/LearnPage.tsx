@@ -10,6 +10,7 @@ import {
   Button,
   Card,
   EmptyState,
+  LinkButton,
   Page,
   PageHeader,
   ProgressBar,
@@ -84,19 +85,18 @@ export default function LearnPage() {
                 </div>
 
                 {!locked && nextLessonId && (
-                  <Link to={`/learn/${nextLessonId}`}>
-                    <Button
-                      variant={done ? 'secondary' : 'primary'}
-                      size="sm"
-                      iconRight="arrowRight"
-                    >
-                      {done
-                        ? t('learn.reviewTrack')
-                        : completed > 0
-                          ? t('learn.continueTrack')
-                          : t('learn.startTrack')}
-                    </Button>
-                  </Link>
+                  <LinkButton
+                    to={`/learn/${nextLessonId}`}
+                    variant={done ? 'secondary' : 'primary'}
+                    size="sm"
+                    iconRight="arrowRight"
+                  >
+                    {done
+                      ? t('learn.reviewTrack')
+                      : completed > 0
+                        ? t('learn.continueTrack')
+                        : t('learn.startTrack')}
+                  </LinkButton>
                 )}
               </div>
 

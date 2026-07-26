@@ -1,4 +1,5 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
+import { Link } from '@/app/router.tsx'
 import { cx } from '@/lib/cx.ts'
 import { Icon, type IconName } from './Icon.tsx'
 
@@ -27,12 +28,25 @@ const BUTTON_SIZE: Record<ButtonSize, string> = {
   lg: 'h-12 px-6 text-[0.9375rem]',
 }
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonStyleProps {
   variant?: ButtonVariant
   size?: ButtonSize
   icon?: IconName
   iconRight?: IconName
 }
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, ButtonStyleProps {}
+
+/** Shared so a link can look exactly like a button without nesting one. */
+export function buttonClass(
+  variant: ButtonVariant = 'secondary',
+  size: ButtonSize = 'md',
+  className?: string,
+) {
+  return cx(BUTTON_BASE, BUTTON_VARIANT[variant], BUTTON_SIZE[size], className)
+}
+
+const iconSizeFor = (size: ButtonSize) => (size === 'sm' ? 15 : size === 'lg' ? 19 : 17)
 
 export function Button({
   variant = 'secondary',
@@ -44,17 +58,40 @@ export function Button({
   type = 'button',
   ...rest
 }: ButtonProps) {
-  const iconSize = size === 'sm' ? 15 : size === 'lg' ? 19 : 17
+  const iconSize = iconSizeFor(size)
   return (
-    <button
-      type={type}
-      className={cx(BUTTON_BASE, BUTTON_VARIANT[variant], BUTTON_SIZE[size], className)}
-      {...rest}
-    >
+    <button type={type} className={buttonClass(variant, size, className)} {...rest}>
       {icon && <Icon name={icon} size={iconSize} />}
       {children}
       {iconRight && <Icon name={iconRight} size={iconSize} />}
     </button>
+  )
+}
+
+/**
+ * A link that looks like a button.
+ *
+ * Wrapping a `<Button>` in a `<Link>` nests a `<button>` inside an `<a>`: two
+ * tab stops with the same accessible name for one action, and invalid HTML.
+ * This renders a single anchor instead.
+ */
+export function LinkButton({
+  to,
+  variant = 'secondary',
+  size = 'md',
+  icon,
+  iconRight,
+  className,
+  children,
+  ...rest
+}: ButtonStyleProps & Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & { to: string }) {
+  const iconSize = iconSizeFor(size)
+  return (
+    <Link to={to} className={buttonClass(variant, size, className)} {...rest}>
+      {icon && <Icon name={icon} size={iconSize} />}
+      {children}
+      {iconRight && <Icon name={iconRight} size={iconSize} />}
+    </Link>
   )
 }
 

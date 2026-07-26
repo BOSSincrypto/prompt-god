@@ -148,6 +148,67 @@ const EMPTY: ProgressState = {
 const STORE_KEY = 'progress'
 const ACTIVITY_WINDOW = 120
 
+/* -------------------------------------------------------------------------- */
+/* Validation                                                                 */
+/* -------------------------------------------------------------------------- */
+
+const num = (value: unknown, fallback = 0): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback
+
+const stringList = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+
+const numberList = (value: unknown): number[] =>
+  Array.isArray(value)
+    ? value.filter((item): item is number => typeof item === 'number' && Number.isFinite(item))
+    : []
+
+function cardsFrom(value: unknown): Record<string, Card> {
+  if (typeof value !== 'object' || value === null) return {}
+  const out: Record<string, Card> = {}
+  for (const [id, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw !== 'object' || raw === null) continue
+    const card = raw as Partial<Card>
+    out[id] = {
+      id,
+      due: num(card.due),
+      interval: num(card.interval),
+      ease: Math.min(2.8, Math.max(1.3, num(card.ease, 2.4))),
+      reps: Math.max(0, num(card.reps)),
+      lapses: Math.max(0, num(card.lapses)),
+    }
+  }
+  return out
+}
+
+/**
+ * Coerces anything into a usable state.
+ *
+ * Both entry points take data the app did not write: `hydrate` reads whatever
+ * is in IndexedDB, and `replaceAll` takes a user-chosen file. A `JSON.parse`
+ * that succeeds proves nothing about shape — `{"activeDays": null}` type-checks
+ * as `ProgressState` at the cast and then throws on `.length` at render. Worse,
+ * the bad state was persisted, so the crash survived a reload and the app could
+ * only be recovered by clearing site data.
+ */
+export function sanitizeProgress(value: unknown): ProgressState {
+  const raw = (typeof value === 'object' && value !== null ? value : {}) as Partial<ProgressState>
+  return {
+    xp: Math.max(0, num(raw.xp)),
+    completedLessons: stringList(raw.completedLessons),
+    completedTracks: stringList(raw.completedTracks),
+    passedExercises: stringList(raw.passedExercises),
+    cards: cardsFrom(raw.cards),
+    streak: Math.max(0, num(raw.streak)),
+    bestStreak: Math.max(0, num(raw.bestStreak)),
+    lastActiveDay: Math.max(0, num(raw.lastActiveDay)),
+    activeDays: numberList(raw.activeDays).slice(-ACTIVITY_WINDOW),
+    promptsAnalyzed: Math.max(0, num(raw.promptsAnalyzed)),
+    bestScore: Math.min(100, Math.max(0, num(raw.bestScore))),
+    reviewsDone: Math.max(0, num(raw.reviewsDone)),
+  }
+}
+
 interface ProgressStore extends ProgressState {
   hydrated: boolean
   hydrate: () => Promise<void>
@@ -159,7 +220,7 @@ interface ProgressStore extends ProgressState {
   gradeCard: (cardId: string, grade: ReviewGrade) => void
   seedCards: (ids: string[]) => void
   dueCards: () => Card[]
-  replaceAll: (state: ProgressState) => void
+  replaceAll: (state: unknown) => void
   reset: () => Promise<void>
 }
 
@@ -236,8 +297,8 @@ export const useProgress = create<ProgressStore>()((set, get) => {
 
     hydrate: async () => {
       if (get().hydrated) return
-      const stored = await kv.get<ProgressState | null>(STORE_KEY, null)
-      set({ ...EMPTY, ...(stored ?? {}), hydrated: true })
+      const stored = await kv.get<unknown>(STORE_KEY, null)
+      set({ ...(stored === null ? EMPTY : sanitizeProgress(stored)), hydrated: true })
     },
 
     addXp: (amount) => active({ xp: get().xp + amount }),
@@ -305,7 +366,7 @@ export const useProgress = create<ProgressStore>()((set, get) => {
     },
 
     replaceAll: (state) => {
-      set({ ...EMPTY, ...state })
+      set({ ...sanitizeProgress(state), hydrated: true })
       persist(snapshot(get()))
     },
 

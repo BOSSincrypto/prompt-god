@@ -117,3 +117,61 @@ describe('progress persistence', () => {
     expect(useProgress.getState().hydrated).toBe(true)
   })
 })
+
+describe('malformed data', () => {
+  // Both entry points take data the app did not write. A JSON.parse that
+  // succeeds proves nothing about shape, and the bad state used to be
+  // persisted — so the crash survived a reload.
+  const POISON: unknown[] = [
+    null,
+    42,
+    'nonsense',
+    [],
+    { activeDays: null, completedLessons: null },
+    { xp: 'lots', cards: 'none', streak: NaN },
+    { completedLessons: [1, 2, { a: 1 }], cards: { x: null } },
+    { activeDays: [1, 'two', null, 4], bestScore: 5000, ease: -9 },
+  ]
+
+  it('never produces a state that crashes a consumer', async () => {
+    const { sanitizeProgress, earnedAchievements, levelFromXp } = await import('./progress.ts')
+    for (const input of POISON) {
+      const state = sanitizeProgress(input)
+      expect(Array.isArray(state.completedLessons), JSON.stringify(input)).toBe(true)
+      expect(Array.isArray(state.activeDays)).toBe(true)
+      expect(Number.isFinite(state.xp)).toBe(true)
+      expect(state.bestScore).toBeLessThanOrEqual(100)
+      // The two things the UI actually calls on a fresh state.
+      expect(() => earnedAchievements(state)).not.toThrow()
+      expect(Number.isFinite(levelFromXp(state.xp))).toBe(true)
+    }
+  })
+
+  it('drops values of the wrong type rather than keeping them', async () => {
+    const { sanitizeProgress } = await import('./progress.ts')
+    const state = sanitizeProgress({ completedLessons: ['ok', 7, null], activeDays: [1, 'x', 3] })
+    expect(state.completedLessons).toEqual(['ok'])
+    expect(state.activeDays).toEqual([1, 3])
+  })
+
+  it('keeps a well-formed import intact', async () => {
+    const { sanitizeProgress } = await import('./progress.ts')
+    expect(sanitizeProgress(SAVED)).toEqual(SAVED)
+  })
+
+  it('survives importing garbage through the store', async () => {
+    const useProgress = await freshStore()
+    await useProgress.getState().hydrate()
+    useProgress.getState().replaceAll({ activeDays: null, completedLessons: null })
+    expect(useProgress.getState().activeDays).toEqual([])
+    expect(useProgress.getState().completedLessons).toEqual([])
+  })
+
+  it('recovers from poison already sitting in storage', async () => {
+    disk.set('progress', { xp: 'lots', activeDays: null })
+    const useProgress = await freshStore()
+    await useProgress.getState().hydrate()
+    expect(useProgress.getState().xp).toBe(0)
+    expect(useProgress.getState().activeDays).toEqual([])
+  })
+})

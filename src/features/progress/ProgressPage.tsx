@@ -170,9 +170,10 @@ export default function ProgressPage() {
   const importData = (file: File) => {
     void file.text().then((text) => {
       try {
-        replaceAll(JSON.parse(text) as ProgressState)
+        // The store sanitises whatever comes out; this only guards the parse.
+        replaceAll(JSON.parse(text))
       } catch {
-        console.warn('[prompt-god] import failed: not valid progress JSON')
+        console.warn('[prompt-god] import failed: not valid JSON')
       }
     })
   }

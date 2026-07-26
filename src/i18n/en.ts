@@ -16,6 +16,7 @@ export const en = {
   'nav.progress': 'Progress',
   'nav.settings': 'Settings',
   'nav.menu': 'Menu',
+  'nav.skipToContent': 'Skip to content',
   'nav.close': 'Close',
 
   'common.start': 'Start',

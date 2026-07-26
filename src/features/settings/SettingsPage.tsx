@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   PROVIDER_INFO,
   PROVIDERS,
@@ -36,6 +36,11 @@ function ByokSection() {
   const [saved, setSaved] = useState(false)
   const [test, setTest] = useState<TestState>({ status: 'idle' })
 
+  // Switching provider while a test is in flight would otherwise let the old
+  // result land under the new provider's UI — a green tick for a key that was
+  // never tested against it, or a foreign error message.
+  const testRun = useRef(0)
+
   useEffect(() => {
     void credentials.all().then((all) => {
       const existing = all[0]
@@ -50,6 +55,8 @@ function ByokSection() {
   const info = PROVIDER_INFO[provider]
 
   const changeProvider = (next: ProviderId) => {
+    // Invalidates any in-flight test.
+    testRun.current++
     setProvider(next)
     setModel(PROVIDER_INFO[next].defaultModel)
     setTest({ status: 'idle' })
@@ -71,11 +78,13 @@ function ByokSection() {
   }
 
   const runTest = async () => {
+    const run = ++testRun.current
     setTest({ status: 'testing' })
     try {
       await testConnection({ provider, apiKey: apiKey.trim(), model: model.trim() })
-      setTest({ status: 'ok' })
+      if (run === testRun.current) setTest({ status: 'ok' })
     } catch (error) {
+      if (run !== testRun.current) return
       const message =
         error instanceof ProviderError
           ? error.message

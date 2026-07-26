@@ -16,6 +16,7 @@ export const ru: Dict = {
   'nav.progress': 'Прогресс',
   'nav.settings': 'Настройки',
   'nav.menu': 'Меню',
+  'nav.skipToContent': 'К основному содержимому',
   'nav.close': 'Закрыть',
 
   'common.start': 'Начать',

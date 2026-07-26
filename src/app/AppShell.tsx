@@ -115,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-field focus:bg-surface focus:px-4 focus:py-2 focus:shadow-card"
       >
-        {t('nav.menu')}
+        {t('nav.skipToContent')}
       </a>
 
       <header className="sticky top-0 z-30 border-b border-line glass">
