@@ -118,6 +118,34 @@ test('the command palette finds a lesson and navigates to it', async ({ page }) 
   await expect(page).toHaveURL(/\/lab$/)
 })
 
+test('the app runs clean under its own CSP', async ({ page }) => {
+  // The policy is emitted at build time, so a violation only ever shows up in
+  // a built app — which is exactly what this suite runs against. Two features
+  // the policy could plausibly break: the blob download used by the progress
+  // export, and service-worker registration.
+  const violations: string[] = []
+  page.on('console', (message) => {
+    if (/Content Security Policy|Refused to/i.test(message.text())) violations.push(message.text())
+  })
+  page.on('pageerror', (error) => violations.push(`pageerror: ${error.message}`))
+
+  await page.goto('/progress')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: /export|выгрузить/i }).click()
+  expect((await download).suggestedFilename()).toBe('prompt-god-progress.json')
+
+  await page.goto('/')
+  await expect
+    .poll(() =>
+      page.evaluate(() => navigator.serviceWorker.getRegistrations().then((r) => r.length)),
+    )
+    .toBeGreaterThan(0)
+
+  expect(violations).toEqual([])
+})
+
 test('the manifest is served and installable-shaped', async ({ page, request }) => {
   await page.goto('/')
   const href = await page.locator('link[rel="manifest"]').getAttribute('href')
