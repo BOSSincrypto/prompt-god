@@ -109,6 +109,11 @@ export function PromptEditor({
   // The overlay has to follow the textarea's scroll exactly, and a passive
   // listener on the real scroll event is the only thing that stays in sync
   // during momentum scrolling.
+  //
+  // Depends on `highlight`: the overlay is only mounted when highlighting is
+  // on, so an effect that ran once on mount would attach nothing when the
+  // switch starts off, and the highlights would then drift out of alignment
+  // the moment the user scrolled.
   useLayoutEffect(() => {
     const textarea = textareaRef.current
     const overlay = overlayRef.current
@@ -120,7 +125,7 @@ export function PromptEditor({
     sync()
     textarea.addEventListener('scroll', sync, { passive: true })
     return () => textarea.removeEventListener('scroll', sync)
-  }, [])
+  }, [highlight])
 
   return (
     <div className="relative overflow-hidden rounded-card border border-line bg-sunken focus-within:border-line-strong">

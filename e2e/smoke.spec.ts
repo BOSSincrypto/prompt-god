@@ -73,6 +73,36 @@ test('a well-formed prompt scores higher than a vague one', async ({ page }) => 
   expect(good).toBeGreaterThan(vague)
 })
 
+test('the highlight overlay keeps following the editor after being switched on', async ({
+  page,
+}) => {
+  // The overlay only exists while highlighting is on, so its scroll-sync effect
+  // has to re-attach when the switch is toggled. Without that the highlights
+  // drift out of alignment the moment the editor is scrolled.
+  await page.goto('/lab')
+  const editor = page.getByRole('textbox', { name: /prompt lab|лаборатория/i })
+  const toggle = page.getByRole('checkbox', { name: /highlight|подсвечивать/i })
+
+  await toggle.uncheck()
+  await editor.fill(
+    Array.from({ length: 60 }, (_, i) => `Please improve line ${i} somehow.`).join('\n'),
+  )
+  await toggle.check()
+
+  await editor.evaluate((element) => {
+    ;(element as HTMLTextAreaElement).scrollTop = 300
+  })
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const overlay = document.querySelector('pre[aria-hidden="true"]')
+        return overlay instanceof HTMLElement ? overlay.scrollTop : -1
+      }),
+    )
+    .toBe(300)
+})
+
 test('the language switch changes the interface', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: /language|язык/i }).click()
