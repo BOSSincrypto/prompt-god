@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>Prompt God — Learn to write prompts that actually work</title>
+    <meta
+      name="description"
+      content="An offline-first trainer for prompt engineering across Claude, GPT, Gemini, Llama and more. Interactive lessons, a live prompt analyzer, a pattern library and progress tracking. Free, private, no account."
+    />
+    <link rel="canonical" href="https://prompt-god.bossincrypto.dev/" />
+
+    <meta name="theme-color" content="#08080c" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#fbfbfd" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark light" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Prompt God" />
+    <meta property="og:title" content="Prompt God — Learn to write prompts that actually work" />
+    <meta
+      property="og:description"
+      content="Interactive lessons, a live prompt analyzer and a pattern library for every major AI model. Works offline. No account, no tracking."
+    />
+    <meta property="og:url" content="https://prompt-god.bossincrypto.dev/" />
+    <meta property="og:image" content="https://prompt-god.bossincrypto.dev/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Prompt God" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <script>
+      // Resolve theme + language before first paint so there is no flash and
+      // no layout shift. Kept tiny and dependency-free on purpose.
+      ;(function () {
+        try {
+          var s = localStorage.getItem('pg:prefs')
+          var p = s ? JSON.parse(s) : null
+          var theme = (p && p.theme) || 'system'
+          var resolved =
+            theme === 'system'
+              ? matchMedia('(prefers-color-scheme: light)').matches
+                ? 'light'
+                : 'dark'
+              : theme
+          document.documentElement.dataset.theme = resolved
+          var lang = (p && p.locale) || (navigator.language || 'en').slice(0, 2)
+          document.documentElement.lang = lang === 'ru' ? 'ru' : 'en'
+        } catch (e) {
+          /* private-mode storage errors are non-fatal */
+        }
+      })()
+    </script>
+
+    <style>
+      /* Critical shell styles: the boot screen must render without any CSS
+         request, so these few rules are intentionally inlined. */
+      :root {
+        --pg-bg: #08080c;
+        --pg-fg: #ededf2;
+        --pg-accent: #7c5cff;
+      }
+      html[data-theme='light'] {
+        --pg-bg: #fbfbfd;
+        --pg-fg: #16161c;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--pg-bg);
+        color: var(--pg-fg);
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI Variable Display',
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          'Noto Sans',
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      #root {
+        min-height: 100%;
+        isolation: isolate;
+      }
+      #pg-boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        gap: 1.25rem;
+        grid-auto-flow: row;
+        align-content: center;
+      }
+      #pg-boot .m {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: linear-gradient(140deg, var(--pg-accent), #22d3ee);
+        animation: pg-pulse 1.4s ease-in-out infinite;
+      }
+      #pg-boot .t {
+        font-size: 0.8125rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        opacity: 0.55;
+      }
+      @keyframes pg-pulse {
+        0%,
+        100% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+        50% {
+          transform: scale(0.82) rotate(45deg);
+          opacity: 0.6;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #pg-boot .m {
+          animation: none;
+        }
+      }
+      noscript .ns {
+        max-width: 32rem;
+        margin: 20vh auto;
+        padding: 0 1.5rem;
+        text-align: center;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="pg-boot" role="status" aria-live="polite">
+        <div class="m"></div>
+        <div class="t">Prompt God</div>
+      </div>
+    </div>
+    <noscript>
+      <div class="ns">
+        <h1>Prompt God</h1>
+        <p>
+          This trainer runs entirely in your browser, so JavaScript is required. Enable it and
+          reload — nothing is sent to a server either way.
+        </p>
+      </div>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

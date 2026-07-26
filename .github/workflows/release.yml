@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  release-please:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      released: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v5
+        with:
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+
+  attach-artifacts:
+    name: Attach build artifacts
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build:only
+
+      - name: Package offline bundle
+        # A self-contained copy of the PWA so anyone can host or run it
+        # locally without a build toolchain.
+        run: |
+          cp dist/index.html dist/404.html
+          tar -czf "prompt-god-${{ needs.release-please.outputs.tag }}.tar.gz" -C dist .
+          (cd dist && zip -qr "../prompt-god-${{ needs.release-please.outputs.tag }}.zip" .)
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag }}
+          files: |
+            prompt-god-${{ needs.release-please.outputs.tag }}.tar.gz
+            prompt-god-${{ needs.release-please.outputs.tag }}.zip
