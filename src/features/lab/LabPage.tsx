@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { analyze, warmUp } from '@/engine/analyzer/index.ts'
 import { diffWords, improve, type ImproveResult } from '@/engine/improve.ts'
 import { allProfiles, type ModelFamilyId } from '@/engine/models.ts'
@@ -7,6 +7,7 @@ import { cx } from '@/lib/cx.ts'
 import { usePrefs } from '@/store/prefs.ts'
 import { useProgress } from '@/store/progress.ts'
 import { Icon } from '@/ui/Icon.tsx'
+import { useCopy } from '@/ui/useCopy.ts'
 import { Badge, Button, Card, Page, PageHeader, Section } from '@/ui/primitives.tsx'
 import { FindingList } from './FindingList.tsx'
 import { PromptEditor } from './PromptEditor.tsx'
@@ -15,20 +16,6 @@ import { SAMPLES } from './samples.ts'
 import { ScoreDial } from './ScoreDial.tsx'
 
 const PROFILES = allProfiles()
-
-function useCopy() {
-  const [copied, setCopied] = useState(false)
-  const copy = useCallback((text: string) => {
-    void navigator.clipboard.writeText(text).then(
-      () => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1600)
-      },
-      () => setCopied(false),
-    )
-  }, [])
-  return { copied, copy }
-}
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (

@@ -1,7 +1,7 @@
 import { Component, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react'
 import { I18nProvider, useT } from '@/i18n/index.tsx'
 import { resolveTheme, usePrefs } from '@/store/prefs.ts'
-import { useProgress } from '@/store/progress.ts'
+import { flushProgress, useProgress } from '@/store/progress.ts'
 import { Button, Page, RouteFallback } from '@/ui/primitives.tsx'
 import { AppShell } from './AppShell.tsx'
 import { RouterProvider, useRouter } from './router.tsx'
@@ -130,6 +130,20 @@ function Root() {
   useEffect(() => {
     void hydrate()
   }, [hydrate])
+
+  // Progress writes are coalesced, so the last action can still be in memory
+  // when the page goes away. These are the two events that fire on mobile.
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') flushProgress()
+    }
+    window.addEventListener('pagehide', flushProgress)
+    document.addEventListener('visibilitychange', onHidden)
+    return () => {
+      window.removeEventListener('pagehide', flushProgress)
+      document.removeEventListener('visibilitychange', onHidden)
+    }
+  }, [])
 
   return (
     <AppShell>

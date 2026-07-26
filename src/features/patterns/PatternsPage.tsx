@@ -6,6 +6,7 @@ import { useContent } from '@/content/useContent.ts'
 import { useI18n } from '@/i18n/index.tsx'
 import { cx } from '@/lib/cx.ts'
 import { Icon } from '@/ui/Icon.tsx'
+import { useCopy } from '@/ui/useCopy.ts'
 import { useModal } from '@/ui/useModal.ts'
 import {
   Badge,
@@ -34,15 +35,8 @@ const LEVEL_TONE = { beginner: 'ok', intermediate: 'accent', advanced: 'warn' } 
 function PatternDetail({ pattern, onClose }: { pattern: Pattern; onClose: () => void }) {
   const { locale, t } = useI18n()
   const navigate = useNavigate()
-  const [copied, setCopied] = useState(false)
   const panelRef = useModal<HTMLDivElement>(onClose)
-
-  const copy = () => {
-    void navigator.clipboard.writeText(pattern.template).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1600)
-    })
-  }
+  const { copied, copy } = useCopy()
 
   const openInLab = () => {
     // The Lab reads its initial text from session storage rather than the URL:
@@ -120,7 +114,11 @@ function PatternDetail({ pattern, onClose }: { pattern: Pattern; onClose: () => 
           <div className="mb-2 flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold">{t('patterns.template')}</h3>
             <div className="flex gap-1.5">
-              <Button size="sm" icon={copied ? 'check' : 'copy'} onClick={copy}>
+              <Button
+                size="sm"
+                icon={copied ? 'check' : 'copy'}
+                onClick={() => copy(pattern.template)}
+              >
                 {copied ? t('common.copied') : t('patterns.copyTemplate')}
               </Button>
               <Button size="sm" variant="primary" icon="flask" onClick={openInLab}>

@@ -228,18 +228,45 @@ interface ProgressStore extends ProgressState {
 function createPersister() {
   let timer: ReturnType<typeof setTimeout> | null = null
   let pending: ProgressState | null = null
-  return (state: ProgressState) => {
+
+  const flush = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    if (pending) {
+      void kv.set(STORE_KEY, pending)
+      pending = null
+    }
+  }
+
+  const persist = (state: ProgressState) => {
     pending = state
     if (timer) return
-    timer = setTimeout(() => {
-      timer = null
-      if (pending) void kv.set(STORE_KEY, pending)
-      pending = null
-    }, 400)
+    timer = setTimeout(flush, 400)
   }
+
+  return { persist, flush }
 }
 
-const persist = createPersister()
+const { persist, flush } = createPersister()
+
+/**
+ * Writes any coalesced state immediately.
+ *
+ * Coalescing leaves the most recent action in memory for up to 400 ms, so
+ * closing the tab or backgrounding the app inside that window would lose it —
+ * most visibly, finishing the last lesson of a track and immediately closing
+ * the tab. The app calls this on `pagehide` and on hidden `visibilitychange`;
+ * those are the two events that actually fire on mobile, where `beforeunload`
+ * does not.
+ *
+ * Registered by the app rather than on import, so the module has no side
+ * effect and tests can drive it explicitly.
+ */
+export function flushProgress() {
+  flush()
+}
 
 function snapshot(state: ProgressStore): ProgressState {
   return {

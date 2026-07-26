@@ -42,12 +42,14 @@ async function freshStore() {
   return module.useProgress
 }
 
-describe('progress persistence', () => {
-  beforeEach(() => {
-    disk.clear()
-    vi.useFakeTimers()
-  })
+// Applies to every block below: the fake disk and the module registry are both
+// process-wide, so a leftover from one test is visible to the next.
+beforeEach(() => {
+  disk.clear()
+  vi.useFakeTimers()
+})
 
+describe('progress persistence', () => {
   it('never writes before it has read what is already saved', async () => {
     // The regression: opening /lab directly and typing fired recordAnalysis
     // while the store still held its empty defaults, and the debounced write
@@ -173,5 +175,37 @@ describe('malformed data', () => {
     await useProgress.getState().hydrate()
     expect(useProgress.getState().xp).toBe(0)
     expect(useProgress.getState().activeDays).toEqual([])
+  })
+})
+
+describe('flushProgress', () => {
+  it('writes the pending state immediately', async () => {
+    // Coalescing leaves the most recent action in memory for up to 400ms.
+    // Closing the tab inside that window used to lose it; the app calls this
+    // on pagehide and on a hidden visibilitychange.
+    vi.resetModules()
+    const { useProgress, flushProgress } = await import('./progress.ts')
+    await useProgress.getState().hydrate()
+
+    useProgress.getState().completeLesson('anatomy', 55)
+    expect(disk.get('progress')).toBeUndefined()
+
+    flushProgress()
+
+    const written = disk.get('progress') as ProgressState
+    expect(written.completedLessons).toContain('anatomy')
+    expect(written.xp).toBe(55)
+  })
+
+  it('does nothing when there is nothing pending', async () => {
+    vi.resetModules()
+    const { useProgress, flushProgress } = await import('./progress.ts')
+    await useProgress.getState().hydrate()
+
+    const { kv } = await import('@/lib/storage.ts')
+    vi.mocked(kv.set).mockClear()
+
+    flushProgress()
+    expect(vi.mocked(kv.set).mock.calls.length).toBe(0)
   })
 })
