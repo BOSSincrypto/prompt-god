@@ -26,9 +26,17 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build:only && npm run preview -- --port 4173 --strictPort',
+    // `--host 127.0.0.1` is load-bearing. Vite preview defaults to binding
+    // `localhost`, which Node resolves to `::1` first on GitHub's runners, so
+    // the server listened only on IPv6 while Playwright polled 127.0.0.1 and
+    // timed out after three minutes — with the build itself taking 3 seconds.
+    command: 'npm run build:only && npm run preview -- --port 4173 --strictPort --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
+    timeout: 120_000,
+    // Surfaces the preview banner in the job log, so the next time a server
+    // fails to come up it is visible rather than inferred from silence.
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 })
