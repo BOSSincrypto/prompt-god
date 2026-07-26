@@ -165,7 +165,13 @@ export default defineConfig({
         // course work offline after the first visit.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
-        navigateFallbackDenylist: [/^\/api\//],
+        // Anything with a file extension is a file, not a route. Without this
+        // the fallback answers a navigation to a real file that was never
+        // precached — SERVING.md, robots.txt, anything dropped next to the
+        // app later — with the app shell, so the user gets a working-looking
+        // page instead of the 404 that would tell them it is missing. Every
+        // route in this app is a bare slug, so nothing legitimate is caught.
+        navigateFallbackDenylist: [/\/[^/?]+\.[^/]+$/],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: false,

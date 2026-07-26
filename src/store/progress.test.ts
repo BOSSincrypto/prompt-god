@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   levelFromXp,
   newCard,
@@ -126,8 +126,46 @@ describe('spaced repetition', () => {
   })
 
   it('counts days from the epoch consistently', () => {
-    expect(today(0)).toBe(0)
-    expect(today(86_400_000)).toBe(1)
-    expect(today(86_400_000 * 2 + 1)).toBe(2)
+    const offset = new Date(0).getTimezoneOffset() * 60_000
+    expect(today(offset)).toBe(0)
+    expect(today(offset + 86_400_000)).toBe(1)
+    expect(today(offset + 86_400_000 * 2 + 1)).toBe(2)
+  })
+})
+
+describe('local days', () => {
+  /** Pins the machine's timezone so the assertions mean the same everywhere. */
+  const withOffset = (minutes: number, body: () => void) => {
+    const spy = vi.spyOn(Date.prototype, 'getTimezoneOffset').mockReturnValue(minutes)
+    try {
+      body()
+    } finally {
+      spy.mockRestore()
+    }
+  }
+
+  it('rolls the day over at local midnight, not UTC midnight', () => {
+    // 22:00 UTC on Jan 1st is already Jan 2nd in Moscow (UTC+3).
+    const lateEvening = Date.UTC(2026, 0, 1, 22, 0)
+    withOffset(-180, () => {
+      expect(today(lateEvening)).toBe(today(Date.UTC(2026, 0, 2, 6, 0)))
+      // 20:30 UTC is 23:30 local — still Jan 1st, one local day earlier.
+      expect(today(lateEvening)).toBe(today(Date.UTC(2026, 0, 1, 20, 30)) + 1)
+    })
+  })
+
+  it('keeps an afternoon and an evening on one day west of UTC', () => {
+    // Both of these are Jan 1st in California (UTC-8), either side of the
+    // UTC rollover that used to split them into two days.
+    withOffset(480, () => {
+      expect(today(Date.UTC(2026, 0, 1, 20, 0))).toBe(today(Date.UTC(2026, 0, 2, 3, 0)))
+    })
+  })
+
+  it('does not punish a streak for travelling west', () => {
+    const state = { ...base, streak: 40, bestStreak: 40, lastActiveDay: 100 }
+    // Landing in a timezone behind the last one makes the local day number go
+    // backwards. The streak survives untouched.
+    expect(touchStreak(state, 99)).toEqual({})
   })
 })

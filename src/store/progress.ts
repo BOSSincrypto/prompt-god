@@ -37,7 +37,21 @@ export interface Card {
 }
 
 const DAY_MS = 86_400_000
-export const today = (now = Date.now()) => Math.floor(now / DAY_MS)
+
+/**
+ * The epoch day number in the viewer's own timezone.
+ *
+ * A streak is a promise about the calendar the user lives in. Counting UTC
+ * days breaks that promise everywhere except Greenwich: in Moscow the day
+ * rolls over at 3am, so an evening session and the next morning's land on one
+ * "day" and the streak silently fails to extend; in California it rolls over
+ * at 5pm, so an afternoon and an evening count as two.
+ *
+ * The offset is read at `now` rather than once at load, so a session that
+ * crosses a DST boundary follows the wall clock.
+ */
+export const today = (now = Date.now()) =>
+  Math.floor((now - new Date(now).getTimezoneOffset() * 60_000) / DAY_MS)
 
 /**
  * A trimmed SM-2. The ease factor moves with the grade and the interval grows
@@ -288,9 +302,14 @@ function snapshot(state: ProgressStore): ProgressState {
 /**
  * Folds today's activity into the streak. A same-day repeat is a no-op, the
  * next day extends, and any longer gap restarts at 1.
+ *
+ * A last-active day in the future is treated as the same day rather than a
+ * gap. It happens for real — fly Berlin to San Francisco and the local day
+ * number goes backwards — and losing a 40-day streak to a flight is a worse
+ * failure than briefly under-counting one.
  */
 export function touchStreak(state: ProgressState, day = today()): Partial<ProgressState> {
-  if (state.lastActiveDay === day) return {}
+  if (state.lastActiveDay >= day) return {}
   const streak = state.lastActiveDay === day - 1 ? state.streak + 1 : 1
   const activeDays = [...state.activeDays, day].slice(-ACTIVITY_WINDOW)
   return {

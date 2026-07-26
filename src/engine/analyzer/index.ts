@@ -101,15 +101,36 @@ export function buildContext(text: string, family: ModelFamilyId): AnalysisConte
   }
 }
 
+/** The first this many penalty points count in full. */
+const FULL_COST = 40
+/** Everything past `FULL_COST` can never cost more than this in total. */
+const TAIL = 60
+
 /**
- * Converts findings into a 0-100 score.
+ * Turns a raw penalty into a 0-100 score.
  *
  * Deductions are damped rather than summed linearly: a prompt with eight small
  * problems is worse than one with three, but not eight times worse, and a
- * score that bottoms out at zero stops being informative. The square-root
- * damping keeps the top of the range sensitive — where most editing happens —
- * while compressing the bottom.
+ * score that bottoms out at zero stops being informative. Below `FULL_COST`
+ * the penalty counts in full, so one serious finding still dominates; past it
+ * the tail compresses towards, but never past, a total loss.
+ *
+ * The compression is hyperbolic rather than a square root because it has to be
+ * smooth at the knee. `sqrt(penalty - 40)` is continuous in value but has an
+ * infinite slope just past the threshold: crossing from 40 to 41 cost 7 points
+ * while the twentieth point past it cost under one, so one extra minor finding
+ * dropped a middling prompt a whole grade and did nothing at all to a bad one.
+ * Here the slope is exactly 1 on both sides of the knee and decays from there,
+ * which is the shape the score claims to have: every extra problem hurts, and
+ * each one hurts a little less.
  */
+export function scoreFromPenalty(penalty: number): number {
+  const excess = penalty - FULL_COST
+  const damped = excess <= 0 ? penalty : FULL_COST + excess / (1 + excess / TAIL)
+  return Math.max(0, Math.min(100, Math.round(100 - damped)))
+}
+
+/** Converts findings into a 0-100 score. See `scoreFromPenalty`. */
 export function scoreFindings(findings: readonly Finding[]): number {
   if (findings.length === 0) return 100
 
@@ -120,9 +141,7 @@ export function scoreFindings(findings: readonly Finding[]): number {
     penalty += weight * SEVERITY_MULTIPLIER[finding.severity]
   }
 
-  // A single critical finding should dominate; damping applies to the tail.
-  const damped = penalty <= 40 ? penalty : 40 + Math.sqrt(penalty - 40) * 7
-  return Math.max(0, Math.min(100, Math.round(100 - damped)))
+  return scoreFromPenalty(penalty)
 }
 
 export function gradeFor(score: number): AnalysisResult['grade'] {

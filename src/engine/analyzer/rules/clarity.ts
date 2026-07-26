@@ -3,6 +3,14 @@ import { countMatches, findSpans, words } from '../text.ts'
 import type { Rule } from '../types.ts'
 
 /**
+ * Comparative budgets, which read as negations but are really constraints:
+ * "no more than 200 words", "не позднее пятницы". Kept out of the prohibition
+ * count so a precise prompt is not mistaken for a restrictive one.
+ */
+const BUDGET_PHRASE =
+  /(?<![\p{L}\p{N}])(?:no|not)\s+(?:more|less|fewer|longer|shorter|later|earlier|worse)\s+than|(?<![\p{L}\p{N}])не\s+(?:более|менее|больше|меньше|длиннее|короче|позднее|раньше|позже)/giu
+
+/**
  * Clarity and context rules: is the request unambiguous, and does the model
  * have what it needs to answer without guessing?
  */
@@ -140,15 +148,25 @@ export const clarityRules: Rule[] = [
       },
     },
     check: (ctx) => {
-      const negatives = countMatches(ctx.text, lex('negativeOnly', ctx.lang))
-      if (negatives < 3) return null
+      const negations = findSpans(ctx.text, lex('negativeOnly', ctx.lang), 40)
+      // "no more than 200 words" is a budget, not a prohibition — it narrows
+      // the answer rather than leaving it open, which is the opposite of what
+      // this rule is about. Counting the bare "no" made a tightly specified
+      // prompt read as a wall of don'ts.
+      const budgets = findSpans(ctx.text, BUDGET_PHRASE, 40)
+      const inBudget = (span: { start: number; end: number }) =>
+        budgets.some((budget) => span.start >= budget.start && span.end <= budget.end)
+
+      const prohibitions = negations.filter((span) => !inBudget(span))
+      if (prohibitions.length < 3) return null
+
       // Only fires when prohibitions dominate: there must be little positive
       // direction to balance them.
       const directives =
         countMatches(ctx.text, lexBoth('generationTask')) +
         countMatches(ctx.text, lexBoth('transformationTask')) +
         countMatches(ctx.text, lexBoth('outputFormat'))
-      return negatives > directives * 2 ? findSpans(ctx.text, lex('negativeOnly', ctx.lang)) : null
+      return prohibitions.length > directives * 2 ? prohibitions.slice(0, 12) : null
     },
   },
 
@@ -276,8 +294,12 @@ export const clarityRules: Rule[] = [
     },
     check: (ctx) => {
       const opener = ctx.text.trimStart().slice(0, 80)
+      // `(?<=^\s*)` rather than `^`, so the spans line up against the real
+      // text: anchoring at `^` matched the trimmed opener but nothing in a
+      // prompt that began with a blank line, which produced a finding with
+      // no highlight to point at.
       const pattern =
-        /^(?:make|fix|change|update|improve|rewrite|shorten)\s+(?:it|this|that|these|those)\b|^(?:сделай|исправь|измени|обнови|улучши|перепиши|сократи)\s+(?:это|его|её|их|этот|эту)\b/iu
+        /(?<=^\s*)(?:(?:make|fix|change|update|improve|rewrite|shorten)\s+(?:it|this|that|these|those)|(?:сделай|исправь|измени|обнови|улучши|перепиши|сократи)\s+(?:это|его|её|их|этот|эту))(?![\p{L}\p{N}])/iu
       if (!pattern.test(opener)) return null
       // If the prompt also carries the material, the reference resolves fine.
       if (ctx.stats.words > ctx.minWords(60) || ctx.structure.hasAnyDelimiter) return null
@@ -403,7 +425,7 @@ export const clarityRules: Rule[] = [
     },
     check: (ctx) => {
       const pattern =
-        /\{\{\s*[\w.]+\s*\}\}|\[(?:insert|your|add|paste|вставьте|ваш[аи]?е?)\b[^\]]{0,40}\]|\bTODO\b|\bFIXME\b|\bXXX\b|<(?:placeholder|заполнить)>/giu
+        /\{\{\s*[\w.]+\s*\}\}|\[(?:insert|your|add|paste|вставьте|ваш[аи]?е?)(?![\p{L}\p{N}])[^\]]{0,40}\]|\bTODO\b|\bFIXME\b|\bXXX\b|<(?:placeholder|заполнить)>/giu
       const spans = findSpans(ctx.text, pattern)
       return spans.length > 0 ? spans : null
     },

@@ -30,7 +30,8 @@
     "e2e": "playwright test",
     "icons": "node scripts/generate-icons.mjs",
     "budget": "node scripts/check-bundle-budget.mjs",
-    "verify": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build:only && npm run budget"
+    "verify": "npm run lint && npm run check:regex && npm run format:check && npm run typecheck && npm run test && npm run build:only && npm run budget",
+    "check:regex": "node scripts/check-regex-boundaries.mjs"
   },
   "dependencies": {
     "idb": "8.0.3",

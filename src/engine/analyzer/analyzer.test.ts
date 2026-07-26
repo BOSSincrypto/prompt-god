@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analyze, classifyTask, gradeFor, RULES, scoreFindings } from './index.ts'
+import { analyze, classifyTask, gradeFor, RULES, scoreFindings, scoreFromPenalty } from './index.ts'
 import { computeStats, detectLang, estimateTokens, findSpans } from './text.ts'
 
 const ids = (text: string, family: Parameters<typeof analyze>[1] = 'generic') =>
@@ -493,5 +493,106 @@ describe('contradiction word boundaries', () => {
     expect(
       ids('Give a short answer, but make it comprehensive and cover every case in the codebase.'),
     ).toContain('contradiction')
+  })
+})
+
+describe('russian rule coverage', () => {
+  // Long enough to clear the "empty" short-circuit, short enough that the
+  // rule still treats the referent as absent rather than pasted in below.
+  const OPENER = 'сократи это до трёх предложений и убери все лишние подробности'
+
+  it('flags a bare pronoun opener in Russian', () => {
+    expect(ids(OPENER)).toContain('ambiguous-reference')
+    expect(ids('исправь этот текст и верни только исправленную версию без пояснений')).toContain(
+      'ambiguous-reference',
+    )
+  })
+
+  it('flags a Russian opener that starts on a blank line, with a span to show', () => {
+    const found = analyze(`\n\n  ${OPENER}`, 'generic').findings.find(
+      (f) => f.ruleId === 'ambiguous-reference',
+    )
+    expect(found).toBeDefined()
+    // Anchoring at `^` against the trimmed opener used to produce a finding
+    // with no span, which highlights nothing in the editor.
+    expect(found?.spans.length).toBeGreaterThan(0)
+  })
+
+  it('flags an unsubstituted Russian placeholder', () => {
+    expect(
+      ids('Напиши письмо клиенту [вставьте имя] про доставку заказа на этой неделе.'),
+    ).toContain('unfilled-placeholder')
+  })
+})
+
+describe('score curve', () => {
+  it('never rewards an extra problem', () => {
+    let previous = 101
+    for (let penalty = 0; penalty <= 600; penalty += 0.5) {
+      const score = scoreFromPenalty(penalty)
+      expect(score, `penalty ${penalty}`).toBeLessThanOrEqual(previous)
+      previous = score
+    }
+  })
+
+  it('has no cliff: one more point of penalty never costs more than one point', () => {
+    for (let penalty = 0; penalty <= 600; penalty += 0.5) {
+      const drop = scoreFromPenalty(penalty) - scoreFromPenalty(penalty + 1)
+      expect(drop, `drop at penalty ${penalty}`).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('keeps the top of the range sensitive, where editing actually happens', () => {
+    // A single serious finding has to move the number visibly.
+    expect(scoreFromPenalty(0)).toBe(100)
+    expect(scoreFromPenalty(24)).toBe(76)
+  })
+
+  it('compresses the tail instead of bottoming out', () => {
+    expect(scoreFromPenalty(100)).toBeGreaterThan(0)
+    expect(scoreFromPenalty(200)).toBeLessThan(scoreFromPenalty(100))
+  })
+
+  it('stays inside 0..100 however bad the prompt is', () => {
+    for (const penalty of [0, 40, 100, 500, 50_000]) {
+      expect(scoreFromPenalty(penalty)).toBeGreaterThanOrEqual(0)
+      expect(scoreFromPenalty(penalty)).toBeLessThanOrEqual(100)
+    }
+  })
+})
+
+describe('negative-only budgets', () => {
+  // Chosen so the rule genuinely fired before the fix: four "no"s and no
+  // directive vocabulary at all. A prompt that merely mixes budgets with
+  // instructions never tripped it, so testing one would prove nothing.
+  const EN =
+    'Constraints for the release note: no more than 200 words, no more than 3 paragraphs, no fewer than 2 concrete examples, and no later than the Friday cutoff.'
+  const RU =
+    'Ограничения для релиз-ноута: не более 200 слов, не более 3 абзацев, не менее 2 конкретных примеров и не позднее пятницы.'
+
+  it('does not read length budgets as prohibitions', () => {
+    expect(ids(EN)).not.toContain('negative-only')
+  })
+
+  it('does not read Russian budgets as prohibitions', () => {
+    expect(ids(RU)).not.toContain('negative-only')
+  })
+
+  it('still flags a prompt that is genuinely all prohibitions', () => {
+    expect(
+      ids(
+        'Do not use jargon. Never mention the competition. Avoid marketing language. ' +
+          "Don't include statistics. Refrain from making promises about dates.",
+      ),
+    ).toContain('negative-only')
+  })
+
+  it('still flags Russian prohibitions', () => {
+    expect(
+      ids(
+        'Не используй жаргон. Никогда не упоминай конкурентов. Избегай маркетингового языка. ' +
+          'Нельзя приводить статистику.',
+      ),
+    ).toContain('negative-only')
   })
 })

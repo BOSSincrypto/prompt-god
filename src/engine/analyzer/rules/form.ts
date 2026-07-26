@@ -222,7 +222,9 @@ export const formRules: Rule[] = [
       // enumerates fields by name.
       const showsShape = /\{[^}]*"[\w-]+"\s*:/su.test(ctx.text)
       const namesKeys =
-        /\b(?:keys?|fields?|properties|schema)\b|\b(?:ключ|пол[ея]|свойств|схем)/iu.test(ctx.text)
+        /\b(?:keys?|fields?|properties|schema)\b|(?<![\p{L}\p{N}])(?:ключ|пол[ея]|свойств|схем)/iu.test(
+          ctx.text,
+        )
       return showsShape || namesKeys ? null : findSpans(ctx.text, /\bjson\b/giu, 3)
     },
   },
@@ -339,13 +341,22 @@ export const formRules: Rule[] = [
       },
     },
     check: (ctx) => {
-      const markers = countMatches(ctx.text, /\bexamples?\b|\bпример(?:ы|ов)?\b/giu)
+      const markers = countMatches(
+        ctx.text,
+        /\bexamples?\b|(?<![\p{L}\p{N}])пример(?:ы|ов)?(?![\p{L}\p{N}])/giu,
+      )
       if (markers < 2) return null
       const delimited =
         ctx.structure.xmlTags.some((tag) => tag.includes('example')) ||
         ctx.structure.codeFences >= 2 ||
         ctx.structure.tripleQuotes >= 2
-      return delimited ? null : findSpans(ctx.text, /\bexamples?\b|\bпример(?:ы|ов)?\b/giu, 4)
+      return delimited
+        ? null
+        : findSpans(
+            ctx.text,
+            /\bexamples?\b|(?<![\p{L}\p{N}])пример(?:ы|ов)?(?![\p{L}\p{N}])/giu,
+            4,
+          )
     },
   },
 
