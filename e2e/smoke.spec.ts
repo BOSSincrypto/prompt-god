@@ -192,6 +192,43 @@ test('the app runs clean under its own CSP', async ({ page }) => {
   expect(violations).toEqual([])
 })
 
+test('the pattern drawer behaves like the modal it claims to be', async ({ page }) => {
+  await page.goto('/patterns')
+  const cards = page.locator('[role="button"][tabindex="0"]')
+  await expect(cards.first()).toBeVisible()
+
+  // Open a card far down the grid, so the reader has a position to lose.
+  // Reading `before` after the click keeps Playwright's own scroll-into-view
+  // out of the measurement — the assertion is about what the app does.
+  const card = cards.last()
+  await card.scrollIntoViewIfNeeded()
+  const before = await page.evaluate(() => window.scrollY)
+  expect(before).toBeGreaterThan(0)
+
+  await card.click()
+  const drawer = page.getByRole('dialog')
+  await expect(drawer).toBeVisible()
+
+  // `aria-modal="true"` promises the page behind is inert: Tab must not walk
+  // out of the drawer into the grid, and the page must not scroll under it.
+  await expect(page.locator('body')).toHaveCSS('overflow', 'hidden')
+  for (let i = 0; i < 25; i++) await page.keyboard.press('Tab')
+  expect(
+    await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null),
+  ).toBe(true)
+
+  await page.keyboard.press('Escape')
+  await expect(drawer).toHaveCount(0)
+
+  // Opening and closing a drawer is UI state, not a page change: the reader's
+  // position in the list survives it.
+  expect(await page.evaluate(() => window.scrollY)).toBe(before)
+
+  // And Back does not re-open what was just dismissed.
+  await page.goBack()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+})
+
 test('the manifest is served and installable-shaped', async ({ page, request }) => {
   await page.goto('/')
   const href = await page.locator('link[rel="manifest"]').getAttribute('href')

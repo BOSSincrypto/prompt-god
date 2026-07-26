@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate, useRouter } from '@/app/router.tsx'
 import { loadPatterns } from '@/content/index.ts'
 import type { Pattern, PatternCategory } from '@/content/types.ts'
@@ -6,6 +6,7 @@ import { useContent } from '@/content/useContent.ts'
 import { useI18n } from '@/i18n/index.tsx'
 import { cx } from '@/lib/cx.ts'
 import { Icon } from '@/ui/Icon.tsx'
+import { useModal } from '@/ui/useModal.ts'
 import {
   Badge,
   Button,
@@ -34,16 +35,7 @@ function PatternDetail({ pattern, onClose }: { pattern: Pattern; onClose: () => 
   const { locale, t } = useI18n()
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
-  const closeRef = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    closeRef.current?.focus()
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onClose])
+  const panelRef = useModal<HTMLDivElement>(onClose)
 
   const copy = () => {
     void navigator.clipboard.writeText(pattern.template).then(() => {
@@ -70,6 +62,7 @@ function PatternDetail({ pattern, onClose }: { pattern: Pattern; onClose: () => 
       role="presentation"
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={pattern.name}
@@ -86,7 +79,6 @@ function PatternDetail({ pattern, onClose }: { pattern: Pattern; onClose: () => 
             <p className="mt-2 text-pretty text-muted">{pattern.summary}</p>
           </div>
           <button
-            ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label={t('common.close')}
@@ -307,7 +299,12 @@ export default function PatternsPage() {
         </div>
       )}
 
-      {selected && <PatternDetail pattern={selected} onClose={() => navigate('/patterns')} />}
+      {selected && (
+        <PatternDetail
+          pattern={selected}
+          onClose={() => navigate('/patterns', { replace: true })}
+        />
+      )}
     </Page>
   )
 }

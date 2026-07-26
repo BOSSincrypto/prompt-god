@@ -92,14 +92,21 @@ export function RouterProvider({
 
   const navigate = useCallback<RouterValue['navigate']>((to, options) => {
     const url = new URL(to, window.location.origin)
-    const same = url.pathname === window.location.pathname && url.search === window.location.search
+    const previousPath = window.location.pathname
+    const same = url.pathname === previousPath && url.search === window.location.search
 
     if (options?.replace || same) window.history.replaceState(null, '', url)
     else window.history.pushState(null, '', url)
 
     startTransition(() => setLocation(currentLocation()))
 
-    if (!url.hash) window.scrollTo({ top: 0, behavior: 'instant' })
+    // Scroll to the top on a real page change only. A query-only change is
+    // used for UI state — the pattern drawer, for one — and resetting the
+    // scroll there throws away the reader's place in a long list every time
+    // they open a card.
+    if (!url.hash && url.pathname !== previousPath) {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
   }, [])
 
   const value = useMemo<RouterValue>(() => {

@@ -3,6 +3,7 @@ import { loadSearchIndex, searchEntries, type IndexEntry } from '@/content/index
 import { useI18n } from '@/i18n/index.tsx'
 import { cx } from '@/lib/cx.ts'
 import { Icon, type IconName } from '@/ui/Icon.tsx'
+import { useModal } from '@/ui/useModal.ts'
 import { useNavigate } from './router.tsx'
 import { NAV_ROUTES } from './routes.ts'
 
@@ -22,6 +23,7 @@ interface Item {
 export default function CommandPalette({ onClose }: { onClose: () => void }) {
   const { locale, t } = useI18n()
   const navigate = useNavigate()
+  const panelRef = useModal<HTMLDivElement>(onClose)
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const [query, setQuery] = useState('')
@@ -103,10 +105,8 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
   // Escape silently stopped closing the palette.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        onClose()
-      } else if (event.key === 'ArrowDown') {
+      // Escape is handled by useModal, which also traps Tab and locks scroll.
+      if (event.key === 'ArrowDown') {
         event.preventDefault()
         setActive((value) => (items.length === 0 ? 0 : (value + 1) % items.length))
       } else if (event.key === 'ArrowUp') {
@@ -136,6 +136,7 @@ export default function CommandPalette({ onClose }: { onClose: () => void }) {
       role="presentation"
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={t('common.search')}
