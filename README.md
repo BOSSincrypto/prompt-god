@@ -28,11 +28,11 @@ This app teaches what replaced all of that.
 
 ## What's in it
 
-|                     |                                                                                                                             |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **Course**          | 18 lessons across 6 tracks, beginner to production. Every lesson ends in a graded exercise, not a quiz.                       |
-| **Prompt Lab**      | A deterministic analyzer: paste a prompt, get a scored critique in under a millisecond. 46 rules, 9 categories, model-aware.  |
-| **Pattern library** | 30 named techniques, each with the cases it helps, the cases it hurts, and a fill-in template.                                |
+|                     |                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Course**          | 18 lessons across 6 tracks, beginner to production. Every lesson ends in a graded exercise, not a quiz.                      |
+| **Prompt Lab**      | A deterministic analyzer: paste a prompt, get a scored critique in under a millisecond. 46 rules, 9 categories, model-aware. |
+| **Pattern library** | 30 named techniques, each with the cases it helps, the cases it hurts, and a fill-in template.                               |
 | **Model matrix**    | What actually changes when you switch families — verified against vendor docs.                                               |
 | **Progress**        | XP, streaks, achievements and spaced repetition, stored only in your browser.                                                |
 
@@ -69,12 +69,12 @@ as a checklist instead.
 The Lab can run a prompt against a real model. Requests go from your browser straight to the
 provider — there is no server in this project. The key is stored in IndexedDB on your device.
 
-| Provider         | Browser reachability                                |
-| ---------------- | --------------------------------------------------- |
-| OpenRouter       | Designed for browser clients                        |
-| Google AI Studio | Serves browser callers                              |
-| Anthropic        | Works with an explicit opt-in header                |
-| OpenAI           | Does not advertise browser CORS; may be blocked     |
+| Provider         | Browser reachability                            |
+| ---------------- | ----------------------------------------------- |
+| OpenRouter       | Designed for browser clients                    |
+| Google AI Studio | Serves browser callers                          |
+| Anthropic        | Works with an explicit opt-in header            |
+| OpenAI           | Does not advertise browser CORS; may be blocked |
 
 > A key stored in a browser can be read by anything that can run scripts on the page. Use a key with
 > a spending cap and remove it when you are done. The app works fully without one.
@@ -87,14 +87,14 @@ npm run dev          # dev server
 npm run verify       # lint + typecheck + tests + build + bundle budget
 ```
 
-| Script            |                                                          |
-| ----------------- | -------------------------------------------------------- |
-| `npm run dev`     | Vite dev server                                          |
-| `npm run build`   | Typecheck, then build                                    |
-| `npm run test`    | Unit tests                                               |
-| `npm run e2e`     | Playwright end-to-end tests                              |
-| `npm run budget`  | Fail if the first-load payload exceeded budget           |
-| `npm run icons`   | Regenerate PWA icons and the OG card from the source SVG |
+| Script           |                                                          |
+| ---------------- | -------------------------------------------------------- |
+| `npm run dev`    | Vite dev server                                          |
+| `npm run build`  | Typecheck, then build                                    |
+| `npm run test`   | Unit tests                                               |
+| `npm run e2e`    | Playwright end-to-end tests                              |
+| `npm run budget` | Fail if the first-load payload exceeded budget           |
+| `npm run icons`  | Regenerate PWA icons and the OG card from the source SVG |
 
 ### Stack
 
