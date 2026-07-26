@@ -40,7 +40,7 @@ function Logo() {
           strokeLinejoin="round"
         />
       </svg>
-      <span className="hidden sm:inline">Prompt God</span>
+      <span>Prompt God</span>
     </Link>
   )
 }

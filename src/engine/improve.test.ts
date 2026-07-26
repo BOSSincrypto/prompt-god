@@ -139,3 +139,45 @@ describe('diffWords', () => {
     expect(chunks.length).toBeLessThanOrEqual(2)
   })
 })
+
+describe('improve regressions', () => {
+  // Cases where an adversarial review caught the rewriter corrupting input.
+
+  it('never lowercases SQL keywords', () => {
+    const original =
+      'CRITICAL: rewrite this query and keep it valid!! SELECT Name FROM Customers WHERE Status = 1 ORDER BY Name.'
+    const { text } = improve(original)
+    expect(text).toContain('SELECT Name FROM Customers')
+    expect(text).toContain('ORDER BY Name')
+  })
+
+  it('never joins a line starting with a dot onto the previous one', () => {
+    const original = [
+      'CRITICAL: migrate the service to the new runtime!!',
+      '.NET Core is the target platform for the team, and the answer should be JSON.',
+    ].join('\n')
+    expect(improve(original).text).toContain('.NET Core')
+  })
+
+  it('returns the original rather than a stub when stripping would gut it', () => {
+    // A prompt that is almost entirely politeness and emphasis: removing all of
+    // it leaves nothing useful, and a two-word rewrite is worse than no rewrite.
+    const original = 'Please, kindly, if you would be so kind, thank you in advance!!'
+    const { text } = improve(original)
+    expect(text.trim().split(/\s+/).length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('keeps every improvement idempotent on a second pass', () => {
+    const original =
+      'CRITICAL: you MUST summarise the report below and double-check your answer!! Think step by step.'
+    const once = improve(original, 'claude')
+    const twice = improve(once.text, 'claude')
+    expect(twice.after.score).toBeGreaterThanOrEqual(once.after.score)
+  })
+
+  it('produces a deterministic result across repeated calls', () => {
+    const original = 'Analyse the sales figures for the last quarter and tell me what happened.'
+    const first = improve(original).text
+    for (let i = 0; i < 5; i++) expect(improve(original).text).toBe(first)
+  })
+})

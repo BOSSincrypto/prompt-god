@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from '@/app/router.tsx'
+import { CONTENT_STATS } from '@/content/stats.ts'
 import { RULE_COUNT } from '@/engine/analyzer/index.ts'
 import { useI18n } from '@/i18n/index.tsx'
 import { levelFromXp, useProgress } from '@/store/progress.ts'
@@ -11,9 +12,6 @@ import { Badge, Button, Card, Page, ProgressBar } from '@/ui/primitives.tsx'
  * one method the install button needs is declared here rather than globally.
  */
 type InstallPromptEvent = Event & { prompt: () => Promise<unknown> }
-
-const LESSON_COUNT = 18
-const PATTERN_COUNT = 30
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -65,7 +63,7 @@ function ContinueCard() {
   if (!hydrated || completed.length === 0) return null
 
   const level = levelFromXp(xp)
-  const pct = Math.round((completed.length / LESSON_COUNT) * 100)
+  const pct = Math.round((completed.length / CONTENT_STATS.lessons) * 100)
 
   return (
     <Card className="mb-10 animate-rise">
@@ -89,9 +87,13 @@ function ContinueCard() {
           </Button>
         </Link>
       </div>
-      <ProgressBar value={completed.length} max={LESSON_COUNT} label={t('progress.completion')} />
+      <ProgressBar
+        value={completed.length}
+        max={CONTENT_STATS.lessons}
+        label={t('progress.completion')}
+      />
       <div className="mt-2 text-xs text-subtle">
-        {completed.length}/{LESSON_COUNT} · {pct}%
+        {completed.length}/{CONTENT_STATS.lessons} · {pct}%
       </div>
     </Card>
   )
@@ -99,12 +101,7 @@ function ContinueCard() {
 
 export default function HomePage() {
   const { t } = useI18n()
-  const hydrate = useProgress((s) => s.hydrate)
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null)
-
-  useEffect(() => {
-    void hydrate()
-  }, [hydrate])
 
   useEffect(() => {
     const onPrompt = (event: Event) => {
@@ -154,8 +151,8 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 grid max-w-lg grid-cols-3 gap-6">
-            <Stat value={String(LESSON_COUNT)} label={t('home.statLessons')} />
-            <Stat value={String(PATTERN_COUNT)} label={t('home.statPatterns')} />
+            <Stat value={String(CONTENT_STATS.lessons)} label={t('home.statLessons')} />
+            <Stat value={String(CONTENT_STATS.patterns)} label={t('home.statPatterns')} />
             <Stat value={String(RULE_COUNT)} label={t('home.statChecks')} />
           </div>
         </div>

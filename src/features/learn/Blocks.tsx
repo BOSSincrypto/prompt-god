@@ -40,19 +40,21 @@ export function Blocks({ blocks }: { blocks: readonly Block[] }) {
           case 'list': {
             const List = block.ordered ? 'ol' : 'ul'
             return (
-              <List
-                key={index}
-                className={cx(
-                  'space-y-2 pl-5 text-muted',
-                  block.ordered ? 'list-decimal' : 'list-disc',
-                )}
-              >
-                {block.items.map((item, itemIndex) => (
-                  <li key={itemIndex} className="text-pretty leading-relaxed">
-                    {item}
-                  </li>
-                ))}
-              </List>
+              <div key={index}>
+                {block.title && <h3 className="mb-2 font-medium">{block.title}</h3>}
+                <List
+                  className={cx(
+                    'space-y-2 pl-5 text-muted',
+                    block.ordered ? 'list-decimal' : 'list-disc',
+                  )}
+                >
+                  {block.items.map((item, itemIndex) => (
+                    <li key={itemIndex} className="text-pretty leading-relaxed">
+                      {item}
+                    </li>
+                  ))}
+                </List>
+              </div>
             )
           }
 

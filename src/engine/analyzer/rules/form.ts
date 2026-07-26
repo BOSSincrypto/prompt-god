@@ -128,7 +128,13 @@ export const formRules: Rule[] = [
       const taskPattern = lexBoth('generationTask')
       const inMiddle = countMatches(middle, taskPattern)
       const outside = countMatches(head, taskPattern) + countMatches(tail, taskPattern)
-      return inMiddle >= 2 && outside === 0 ? findSpans(middle, taskPattern, 3) : null
+      if (inMiddle < 2 || outside > 0) return null
+      // Offsets come back relative to `middle`; the editor slices the full
+      // text, so shift them or the highlight lands on unrelated characters.
+      return findSpans(middle, taskPattern, 3).map((span) => ({
+        start: span.start + third,
+        end: span.end + third,
+      }))
     },
   },
 
@@ -152,7 +158,6 @@ export const formRules: Rule[] = [
     },
     check: (ctx) => {
       if (ctx.stats.words < ctx.minWords(10)) return null
-      if (ctx.taskKind === 'conversation') return null
       return lex('outputFormat', ctx.lang).test(ctx.text) ? null : []
     },
   },
@@ -303,9 +308,11 @@ export const formRules: Rule[] = [
       },
     },
     check: (ctx) => {
+      // "For example, …" in prose is not an example set. Only count markers
+      // that actually label one: a line starting "Example 2:", "input:", etc.
       const exampleMarkers = countMatches(
         ctx.text,
-        /\b(example\s*\d*|input:|output:)\b|пример\s*\d*|вход:|выход:/giu,
+        /(?:^|\n)\s*(?:example|пример)\s*\d*\s*[:.)-]|(?:^|\n)\s*(?:input|output|вход|выход)\s*:/giu,
       )
       const exampleTags = ctx.structure.xmlTags.filter((tag) => tag.includes('example')).length
       const total = Math.max(exampleMarkers, exampleTags)
@@ -362,19 +369,24 @@ export const formRules: Rule[] = [
     check: (ctx) => {
       const open = new Map<string, number>()
       const close = new Map<string, number>()
-      // Attributes must look like attributes. Without this, ordinary prose in
-      // angle brackets — "<who reads this, and what they know>" — registers as
-      // an unclosed tag.
-      const re = /<(\/?)([a-z][\w-]*)((?:\s+[\w-]+(?:="[^"]*")?)*)\s*\/?>/gi
+      const selfClosing = new Set<string>()
+      // Attributes must have quoted values. Without that, ordinary prose in
+      // angle brackets — "when a<b and c>d holds" — registers as a tag.
+      const re = /<(\/?)([a-z][\w-]*)((?:\s+[\w-]+="[^"]*")*)\s*(\/?)>/gi
       let match: RegExpExecArray | null
       while ((match = re.exec(ctx.text)) !== null) {
         const name = match[2]?.toLowerCase()
         if (!name) continue
+        // `<br/>` needs no closing partner.
+        if (match[4] === '/') {
+          selfClosing.add(name)
+          continue
+        }
         const map = match[1] ? close : open
         map.set(name, (map.get(name) ?? 0) + 1)
       }
       const unbalanced = [...open.entries()].filter(
-        ([name, count]) => count !== (close.get(name) ?? 0),
+        ([name, count]) => count !== (close.get(name) ?? 0) && !selfClosing.has(name),
       )
       if (unbalanced.length === 0) return null
       return unbalanced.flatMap(([name]) =>

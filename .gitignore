@@ -20,3 +20,7 @@ blob-report
 !.vscode/settings.json
 .idea
 *.swp
+
+# Scratch files written by review agents; never part of the project.
+*.probe.test.ts
+__*.test.ts

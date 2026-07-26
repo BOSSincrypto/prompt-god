@@ -96,10 +96,31 @@ export function countMatches(text: string, pattern: RegExp): number {
   return count
 }
 
-/** Builds a case-insensitive alternation that only matches whole words. */
+/**
+ * Returns a global-flagged copy of `pattern`.
+ *
+ * Shared patterns are cached and reused across analyses, so they must never
+ * carry the `g` flag themselves: `RegExp.prototype.test` on a global regex
+ * advances `lastIndex`, which made repeated analyses of the same prompt return
+ * different findings on alternate calls. Any caller that needs `g` takes a
+ * copy through here.
+ */
+export function globalize(pattern: RegExp): RegExp {
+  return pattern.flags.includes('g') ? pattern : new RegExp(pattern.source, `${pattern.flags}g`)
+}
+
+/**
+ * Builds a case-insensitive alternation that only matches whole words.
+ *
+ * Deliberately NOT global — see `globalize`. Entries are trimmed because a
+ * trailing space inside an alternative lands between the alternation and the
+ * closing word-boundary lookahead, which makes that alternative unmatchable:
+ * "no " could never match "no jargon", and the Russian "не " — the single most
+ * common negation — never matched anything at all.
+ */
 export function wordListPattern(items: readonly string[]): RegExp {
-  const escaped = items.map((item) => item.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${escaped.join('|')})(?![\\p{L}\\p{N}])`, 'giu')
+  const escaped = items.map((item) => item.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${escaped.join('|')})(?![\\p{L}\\p{N}])`, 'iu')
 }
 
 /**
@@ -116,7 +137,14 @@ export interface Structure {
   hasAnyDelimiter: boolean
 }
 
-const XML_TAG = /<\/?([a-z][\w-]*)(?:\s[^>]*)?>/gi
+/**
+ * Attributes must have quoted values for this to count as a tag.
+ *
+ * Without that constraint ordinary prose reads as markup: "explain when a<b
+ * and c>d holds" registers an unclosed <b> tag, which both raises a false
+ * finding and sets `hasAnyDelimiter`, silently suppressing other rules.
+ */
+const XML_TAG = /<\/?([a-z][\w-]*)((?:\s+[\w-]+="[^"]*")*)\s*\/?>/gi
 
 export function analyzeStructure(text: string): Structure {
   const codeFences = countMatches(text, /```/g)

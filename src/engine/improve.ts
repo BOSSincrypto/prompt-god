@@ -1,7 +1,7 @@
 import type { Locale } from '@/i18n/types.ts'
 import { analyze, type AnalysisResult, type Finding } from './analyzer/index.ts'
 import { lex } from './analyzer/lexicon.ts'
-import { detectLang, type TextLang } from './analyzer/text.ts'
+import { detectLang, globalize, type TextLang } from './analyzer/text.ts'
 import { getProfile, type ModelFamilyId } from './models.ts'
 
 /**
@@ -170,30 +170,50 @@ const TODO: Record<string, { label: Record<Locale, string>; example: Record<Loca
   },
 }
 
-/** Strips text that current models read as pressure rather than instruction. */
+/**
+ * Strips text that current models read as pressure rather than instruction.
+ *
+ * Note what this does NOT do: it leaves capitalisation alone. An earlier
+ * version sentence-cased runs of capitals to defuse shouting, and happily
+ * rewrote `SELECT Name FROM Customers` into `Select Name From Customers`. The
+ * analyzer still reports the shouting; the rewriter refuses to corrupt code to
+ * fix a cosmetic problem.
+ */
 function stripNoise(text: string, lang: TextLang): string {
-  return (
-    text
-      .replace(lex('politeness', lang), '')
-      .replace(/!{2,}/g, '.')
-      // Emphatic ALL-CAPS becomes sentence case; known acronyms are left alone.
-      .replace(/\b[A-Z]{4,}\b/g, (word) =>
-        /^(?:JSON|YAML|HTML|CSS|HTTP|HTTPS|REST|CSV|PDF|UTF|ASCII|TODO|NOTE|SQL|API)$/.test(word)
-          ? word
-          : word.charAt(0) + word.slice(1).toLowerCase(),
-      )
-      .replace(/[ \t]{2,}/g, ' ')
-      .replace(/[ \t]+\n/g, '\n')
-  )
+  return text
+    .replace(globalize(lex('politeness', lang)), '')
+    .replace(globalize(lex('shouting', lang)), '')
+    .replace(/!{2,}/g, '.')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
 }
 
+/**
+ * Cleans up the punctuation a removal left behind.
+ *
+ * Deliberately does not touch a leading full stop: `.NET`, `.env` and
+ * `.gitignore` all start lines in real prompts, and an earlier version turned
+ * "…runtime.\n.NET Core is the target" into "…runtime.NET Core is the target".
+ */
 function tidy(text: string): string {
   return text
-    .replace(/\s+([.,;:])/g, '$1')
-    .replace(/([.,;:])\1+/g, '$1')
-    .replace(/^[\s,;:.]+/gm, (match) => (match.includes('\n') ? '\n' : ''))
+    .replace(/[ \t]+([.,;:])/g, '$1')
+    .replace(/([,;:])\1+/g, '$1')
+    .replace(/^[ \t]*[,;:]+[ \t]*/gm, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+}
+
+/**
+ * The rewriter must never hand back something worse than it was given. If
+ * stripping removed most of the prompt — which happens when the prompt was
+ * almost entirely politeness and emphasis — the original is the better answer,
+ * and the findings already say what is wrong with it.
+ */
+function keptEnough(before: string, after: string): boolean {
+  const words = (value: string) => value.trim().split(/\s+/).filter(Boolean).length
+  const remaining = words(after)
+  return remaining >= 4 && remaining >= words(before) * 0.4
 }
 
 const has = (findings: readonly Finding[], id: string) => findings.some((f) => f.ruleId === id)
@@ -236,7 +256,9 @@ export function improve(
     ],
   ] as const) {
     if (!has(findings, ruleId)) continue
-    const next = body.replace(pattern, '')
+    // `lex` patterns are cached and non-global on purpose; `replace` needs a
+    // global copy or it would strip only the first occurrence.
+    const next = body.replace(globalize(pattern), '')
     if (next !== body) {
       body = next
       push(ruleId, label)
@@ -296,10 +318,17 @@ export function improve(
     push(null, STEP.rules)
   }
 
-  const text = parts
+  const rewritten = parts
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+
+  // A rewrite that threw most of the prompt away is worse than no rewrite.
+  // That happens when the input was almost entirely politeness and emphasis:
+  // there is nothing left worth keeping, and the findings already say so.
+  // Checked against the final text rather than any single step, because the
+  // section rebuild and `tidy` also remove content.
+  const text = keptEnough(original, rewritten) ? rewritten : original.trim()
 
   /* 4. Everything left that only the author can answer becomes a checklist. */
   const after = analyze(text, profile.id)

@@ -22,7 +22,7 @@ export interface Track {
 export type Block =
   | { kind: 'p'; text: string }
   | { kind: 'h'; text: string }
-  | { kind: 'list'; items: string[]; ordered?: boolean }
+  | { kind: 'list'; title?: string; items: string[]; ordered?: boolean }
   | { kind: 'note'; tone: 'info' | 'warn' | 'ok'; title?: string; text: string }
   | { kind: 'code'; text: string; caption?: string }
   /** Side-by-side before/after — the workhorse of the whole course. */

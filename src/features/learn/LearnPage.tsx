@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { Link } from '@/app/router.tsx'
 import { loadCourse, trackProgress } from '@/content/index.ts'
 import { useContent } from '@/content/useContent.ts'
@@ -20,13 +19,7 @@ import {
 export default function LearnPage() {
   const { t } = useI18n()
   const course = useContent(loadCourse)
-  const hydrate = useProgress((s) => s.hydrate)
-  const hydrated = useProgress((s) => s.hydrated)
   const completedLessons = useProgress((s) => s.completedLessons)
-
-  useEffect(() => {
-    if (!hydrated) void hydrate()
-  }, [hydrated, hydrate])
 
   if (course.status === 'loading') return <RouteFallback />
   if (course.status === 'error') {

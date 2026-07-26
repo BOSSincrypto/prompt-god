@@ -69,7 +69,6 @@ export type TaskKind =
   | 'transformation'
   | 'analysis'
   | 'code'
-  | 'conversation'
   | 'unknown'
 
 export interface Rule {

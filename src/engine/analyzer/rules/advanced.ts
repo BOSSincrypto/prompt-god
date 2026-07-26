@@ -9,6 +9,61 @@ import type { Rule } from '../types.ts'
  * grounded in vendor documentation current as of 2026-07-26 — see
  * `engine/models.ts` for the verification date.
  */
+/** Capitalised tokens that are vocabulary, not emphasis. */
+const KNOWN_ACRONYMS = new Set([
+  'JSON',
+  'YAML',
+  'HTML',
+  'CSS',
+  'SQL',
+  'API',
+  'HTTP',
+  'HTTPS',
+  'REST',
+  'CSV',
+  'PDF',
+  'UTF',
+  'ASCII',
+  'TODO',
+  'NOTE',
+  'DOM',
+  'URL',
+  'URI',
+  'UUID',
+  'CRUD',
+  'GRPC',
+  'SDK',
+  'CLI',
+  'GUI',
+  'JWT',
+  'OAUTH',
+  'SAML',
+  'CORS',
+  'CDN',
+  'DNS',
+  'SSL',
+  'TLS',
+  'XML',
+  'SELECT',
+  'FROM',
+  'WHERE',
+  'ORDER',
+  'GROUP',
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'JOIN',
+  'GET',
+  'POST',
+  'PUT',
+  'PATCH',
+  'HEAD',
+  'OPTIONS',
+  'NULL',
+  'TRUE',
+  'FALSE',
+])
+
 export const advancedRules: Rule[] = [
   {
     id: 'explicit-cot-on-reasoning-model',
@@ -114,15 +169,26 @@ export const advancedRules: Rule[] = [
     },
     check: (ctx) => {
       const shouting = findSpans(ctx.text, lex('shouting', ctx.lang))
-      const caps = findSpans(ctx.text, /\b[A-ZА-Я]{4,}\b(?:\s+[A-ZА-Я]{2,}\b)*/gu, 8).filter(
-        (span) => {
-          const word = ctx.text.slice(span.start, span.end)
-          return !/^(?:JSON|YAML|HTML|CSS|SQL|API|HTTP|HTTPS|REST|CSV|PDF|UTF|ASCII|TODO|NOTE)$/u.test(
-            word,
-          )
-        },
-      )
       const bangs = countMatches(ctx.text, /!{2,}/g)
+
+      // Capitals alone are not shouting: "HTML DOM", "REST API", "SELECT …
+      // FROM" are ordinary technical writing. A capitalised run only counts
+      // when it contains a word that is not a known acronym, and only ever as
+      // corroboration for an explicit emphasis phrase or "!!".
+      const caps =
+        shouting.length + bangs > 0
+          ? findSpans(
+              ctx.text,
+              /(?<![\p{L}\p{N}])\p{Lu}{4,}(?:\s+\p{Lu}{2,})*(?![\p{L}\p{N}])/gu,
+              8,
+            ).filter((span) =>
+              ctx.text
+                .slice(span.start, span.end)
+                .split(/\s+/)
+                .some((word) => !KNOWN_ACRONYMS.has(word)),
+            )
+          : []
+
       const total = shouting.length + caps.length + bangs
       return total >= 2 ? [...shouting, ...caps] : null
     },
@@ -386,8 +452,12 @@ export const advancedRules: Rule[] = [
       },
     },
     check: (ctx) => {
+      // A bare run of ten digits is far more often an id, an order number or a
+      // timestamp than a phone number, so a phone must carry a country code,
+      // brackets, or separators. Card-shaped runs likewise need separators or
+      // exactly sixteen digits standing alone.
       const pattern =
-        /\b[\w.+-]+@[\w-]+\.[a-z]{2,}\b|(?:\+\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}\b|\b(?:\d{4}[\s-]?){3}\d{4}\b/gi
+        /(?<![\w.+-])[\w.+-]+@[\w-]+\.[a-z]{2,}(?![\w-])|(?:\+\d{1,3}[\s-]?)\(?\d{2,4}\)?[\s-]?\d{2,3}[\s-]?\d{2,3}[\s-]?\d{0,3}|\(\d{3}\)\s?\d{3}[\s-]\d{4}|\b\d{3}[\s-]\d{3}[\s-]\d{4}\b|\b(?:\d{4}[\s-]){3}\d{4}\b/gi
       const spans = findSpans(ctx.text, pattern)
       return spans.length > 0 ? spans : null
     },

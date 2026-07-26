@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { CONTENT_STATS } from '@/content/stats.ts'
 import { kv } from '@/lib/storage.ts'
 
 /* -------------------------------------------------------------------------- */
@@ -88,8 +89,16 @@ export interface Achievement {
 export const ACHIEVEMENTS: readonly Achievement[] = [
   { id: 'first-lesson', icon: 'book', earned: (s) => s.completedLessons.length >= 1 },
   { id: 'first-track', icon: 'layers', earned: (s) => s.completedTracks.length >= 1 },
-  { id: 'half-course', icon: 'target', earned: (s) => s.completedLessons.length >= 9 },
-  { id: 'whole-course', icon: 'trophy', earned: (s) => s.completedLessons.length >= 18 },
+  {
+    id: 'half-course',
+    icon: 'target',
+    earned: (s) => s.completedLessons.length >= Math.ceil(CONTENT_STATS.lessons / 2),
+  },
+  {
+    id: 'whole-course',
+    icon: 'trophy',
+    earned: (s) => s.completedLessons.length >= CONTENT_STATS.lessons,
+  },
   { id: 'streak-3', icon: 'flame', earned: (s) => s.bestStreak >= 3 },
   { id: 'streak-7', icon: 'flame', earned: (s) => s.bestStreak >= 7 },
   { id: 'streak-30', icon: 'flame', earned: (s) => s.bestStreak >= 30 },
@@ -207,6 +216,12 @@ export function touchStreak(state: ProgressState, day = today()): Partial<Progre
 export const useProgress = create<ProgressStore>()((set, get) => {
   const commit = (patch: Partial<ProgressState>) => {
     set(patch)
+    // Never write before the store has read what is already saved. Landing
+    // straight on /lab and typing used to persist the empty defaults over a
+    // previous session's progress — a full wipe of the user's XP, streak and
+    // completed lessons. The in-memory update still happens so the UI stays
+    // responsive; the write lands on the first commit after hydration.
+    if (!get().hydrated) return
     persist(snapshot(get()))
   }
 
@@ -220,6 +235,7 @@ export const useProgress = create<ProgressStore>()((set, get) => {
     hydrated: false,
 
     hydrate: async () => {
+      if (get().hydrated) return
       const stored = await kv.get<ProgressState | null>(STORE_KEY, null)
       set({ ...EMPTY, ...(stored ?? {}), hydrated: true })
     },

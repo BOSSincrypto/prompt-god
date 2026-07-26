@@ -231,6 +231,20 @@ async function main() {
     emit('searchIndex', 'IndexEntry[]', buildSearchIndex(lessons, patterns)),
   )
 
+  // Counts the home page advertises. Emitted rather than hand-maintained so a
+  // new lesson cannot leave the headline number stale.
+  await writeFile(
+    resolve(outDir, 'stats.ts'),
+    `${HEADER}
+export const CONTENT_STATS = {
+  tracks: ${tracks.length},
+  lessons: ${lessons.length},
+  patterns: ${patterns.length},
+  modelNotes: ${modelNotes.length},
+} as const
+`,
+  )
+
   console.log(
     `content: ${tracks.length} tracks, ${lessons.length} lessons, ${patterns.length} patterns, ${modelNotes.length} model notes × ${LOCALES.length} locales`,
   )

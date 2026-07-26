@@ -368,3 +368,130 @@ describe('text utilities', () => {
     }
   })
 })
+
+describe('regressions', () => {
+  // Every case below is a defect an adversarial review found in a shipped
+  // build. Each one stays as a test so it cannot come back.
+
+  it('returns identical findings for repeated analyses of the same prompt', () => {
+    // Shared lexicon patterns used to carry the `g` flag. `RegExp.test` on a
+    // global regex advances `lastIndex`, so rules that used `.test` returned
+    // different answers on alternating calls — the analyzer was not
+    // deterministic.
+    const prompt = 'Write a short blog post about our new caching layer and return it as JSON.'
+    const first = ids(prompt)
+    for (let i = 0; i < 6; i++) expect(ids(prompt), `run ${i + 2}`).toEqual(first)
+  })
+
+  it('keeps every finding span inside the text it describes', () => {
+    const filler =
+      'The dataset contains sales records for the previous fiscal year and each row carries a customer identifier a region a product code a quantity and a net amount in euros. '
+    const text = `${filler.repeat(4)}Now write a summary. Also write a short recommendation. ${filler.repeat(4)}`
+    for (const finding of analyze(text).findings) {
+      for (const span of finding.spans) {
+        expect(span.start, finding.ruleId).toBeGreaterThanOrEqual(0)
+        expect(span.end, finding.ruleId).toBeLessThanOrEqual(text.length)
+        expect(span.end, finding.ruleId).toBeGreaterThan(span.start)
+      }
+    }
+  })
+
+  it('points instructions-buried at the words it actually matched', () => {
+    const filler =
+      'The dataset contains sales records for the previous fiscal year and each row carries a customer identifier a region a product code a quantity and a net amount in euros. '
+    const text = `${filler.repeat(4)}Now write a summary. Also write a short recommendation. ${filler.repeat(4)}`
+    const finding = analyze(text).findings.find((f) => f.ruleId === 'instructions-buried')
+    expect(finding).toBeDefined()
+    for (const span of finding?.spans ?? []) {
+      expect(text.slice(span.start, span.end).toLowerCase()).toMatch(/write|create|generate/)
+    }
+  })
+
+  it('does not read prose comparisons as markup', () => {
+    const text =
+      'Explain when a<b and c>d holds for the dataset, and return the answer as a markdown table.'
+    expect(ids(text)).not.toContain('xml-unbalanced')
+  })
+
+  it('does not treat a self-closing tag as unclosed', () => {
+    expect(
+      ids('Return the summary as HTML with a <br/> between paragraphs, at most 50 words.'),
+    ).not.toContain('xml-unbalanced')
+  })
+
+  it('detects a Russian contradiction', () => {
+    // The Cyrillic half of these patterns sat behind `\b`, which is ASCII-only
+    // in JavaScript, so it never matched.
+    expect(
+      ids(
+        'Дай краткое резюме отчёта, но сделай его исчерпывающим и покрой каждую деталь подробно.',
+      ),
+    ).toContain('contradiction')
+  })
+
+  it('detects Russian negative-only instructions', () => {
+    // "не " carried a trailing space, which landed between the alternation and
+    // the word-boundary lookahead and made it unmatchable.
+    expect(
+      ids('Не используй жаргон. Не пиши длинно. Никогда не добавляй вступление. Без воды.'),
+    ).toContain('negative-only')
+  })
+
+  it('highlights Cyrillic acronyms rather than reporting them without a location', () => {
+    const finding = analyze(
+      'Проанализируй отчёт: НДС и ГОСТ упоминаются в разных разделах документа, объясни разницу.',
+    ).findings.find((f) => f.ruleId === 'undefined-acronym')
+    expect(finding).toBeDefined()
+    expect(finding?.spans.length).toBeGreaterThan(0)
+  })
+
+  it('does not read technical capitals as shouting', () => {
+    for (const text of [
+      'Explain how the HTML DOM relates to the REST API for our new endpoint, in 200 words.',
+      'Rewrite this query and keep it valid: SELECT Name FROM Customers WHERE Status = 1 ORDER BY Name.',
+    ]) {
+      expect(ids(text), text).not.toContain('anti-laziness-pressure')
+    }
+  })
+
+  it('still catches genuine shouting', () => {
+    expect(
+      ids(
+        'CRITICAL: you MUST always return valid JSON with keys a and b. This is extremely important!!',
+      ),
+    ).toContain('anti-laziness-pressure')
+  })
+
+  it('does not read a bare run of digits as a phone number', () => {
+    expect(
+      ids('Look up order 1234567890 in the ledger and summarise it in 50 words.'),
+    ).not.toContain('pii-in-prompt')
+    expect(
+      ids('Call the customer on +44 7700 900123 and log the outcome in the CRM system.'),
+    ).toContain('pii-in-prompt')
+  })
+
+  it('does not read prose "for example" as an example set', () => {
+    expect(
+      ids('Summarise the report and, for example, mention the revenue trend. Return 100 words.'),
+    ).not.toContain('too-few-examples')
+  })
+})
+
+describe('contradiction word boundaries', () => {
+  it('does not match a contradiction keyword inside a longer word', () => {
+    // "short" used to fire inside "SHORTCUT" and "SHORTCOMINGS".
+    expect(
+      ids('List the shortcomings of the current design in detail, as a markdown table of 10 rows.'),
+    ).not.toContain('contradiction')
+    expect(
+      ids('Explain the keyboard shortcut system comprehensively, as a markdown table of 10 rows.'),
+    ).not.toContain('contradiction')
+  })
+
+  it('still matches the whole word', () => {
+    expect(
+      ids('Give a short answer, but make it comprehensive and cover every case in the codebase.'),
+    ).toContain('contradiction')
+  })
+})

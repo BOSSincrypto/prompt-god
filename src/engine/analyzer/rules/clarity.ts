@@ -170,22 +170,39 @@ export const clarityRules: Rule[] = [
       },
     },
     check: (ctx) => {
+      // Two problems this helper exists to avoid. First, `\b` is ASCII-only in
+      // JavaScript, so a Cyrillic alternative sitting behind one never matches
+      // — the Russian half of these pairs was dead. Second, an open-ended
+      // alternation matches inside longer words: "short" fired on "SHORTCUT"
+      // and "SHORTCOMINGS". Whole words get a closing boundary; Russian stems
+      // are prefixes by design and deliberately do not.
+      const word = (whole: string, stems = '') =>
+        new RegExp(
+          `(?<![\\p{L}\\p{N}])(?:(?:${whole})(?![\\p{L}\\p{N}])${stems ? `|(?:${stems})` : ''})`,
+          'iu',
+        )
       const pairs: [RegExp, RegExp][] = [
         [
-          /\b(brief|concise|short|succinct)\b|\bкратк|\bкоротк|\bсжат/iu,
-          /\b(comprehensive|exhaustive|detailed|in-depth|thorough)\b|исчерпыва|подробн|детальн|развёрнут/iu,
+          word('brief|briefly|concise|concisely|short|succinct', 'кратк|коротк|сжат'),
+          word(
+            'comprehensive|exhaustive|detailed|in-depth|thorough|thoroughly',
+            'исчерпыва|подробн|детальн|развёрнут|развернут',
+          ),
         ],
         [
-          /\b(formal|professional)\b|формальн|официальн/iu,
-          /\b(casual|conversational|informal|friendly)\b|неформальн|разговорн|дружелюбн/iu,
+          word('formal|professional|professionally', 'формальн|официальн'),
+          word('casual|conversational|informal|friendly', 'неформальн|разговорн|дружелюбн'),
         ],
         [
-          /\b(creative|imaginative|original)\b|креативн|творческ|оригинальн/iu,
-          /\b(factual|accurate|strictly|precise)\b|фактическ|строго|точно придерж/iu,
+          word('creative|creatively|imaginative|original', 'креативн|творческ|оригинальн'),
+          word(
+            'factual|accurate|accurately|strictly|precise',
+            'фактическ|строго придерж|точно придерж',
+          ),
         ],
         [
-          /\b(simple|simplify|beginner)\b|прост(о|ой|ым)|для новичк/iu,
-          /\b(technical|advanced|expert-level)\b|техническ|продвинут|экспертн/iu,
+          word('simple|simplify|beginner|beginners', 'прост(?:о|ой|ым|ыми)|для новичк'),
+          word('technical|advanced|expert-level', 'техническ|продвинут|экспертн'),
         ],
       ]
       const hits: RegExp[] = []
@@ -423,7 +440,11 @@ export const clarityRules: Rule[] = [
       // An acronym followed by a parenthetical is already expanded.
       const unexpanded = [...acronyms].filter((a) => !new RegExp(`${a}\\s*\\(`, 'u').test(ctx.text))
       if (unexpanded.length < 2) return null
-      return unexpanded.flatMap((a) => findSpans(ctx.text, new RegExp(`\\b${a}\\b`, 'gu'), 2))
+      return unexpanded.flatMap((a) =>
+        // `\b` is ASCII-only, so a Cyrillic acronym would produce a finding
+        // with no highlight. Unicode-aware boundaries work for both scripts.
+        findSpans(ctx.text, new RegExp(`(?<![\\p{L}\\p{N}])${a}(?![\\p{L}\\p{N}])`, 'gu'), 2),
+      )
     },
   },
 ]

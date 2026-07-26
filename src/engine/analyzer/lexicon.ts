@@ -501,8 +501,8 @@ const PURPOSE: LangMap = {
 }
 
 const NEGATIVE_ONLY: LangMap = {
-  en: ["don't", 'do not', 'never', 'avoid', 'without', 'no ', 'stop', 'refrain from', 'must not'],
-  ru: ['не ', 'никогда', 'избегай', 'без ', 'нельзя', 'запрещено', 'не должен', 'воздержись'],
+  en: ["don't", 'do not', 'never', 'avoid', 'without', 'no', 'stop', 'refrain from', 'must not'],
+  ru: ['не', 'никогда', 'избегай', 'без', 'нельзя', 'запрещено', 'не должен', 'воздержись'],
 }
 
 const ASSUMED_KNOWLEDGE: LangMap = {

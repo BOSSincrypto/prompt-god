@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { loadCourse } from '@/content/index.ts'
+import { CONTENT_STATS } from '@/content/stats.ts'
 import { useContent } from '@/content/useContent.ts'
 import { useI18n } from '@/i18n/index.tsx'
 import type { Locale } from '@/i18n/types.ts'
@@ -125,22 +126,17 @@ export default function ProgressPage() {
   const course = useContent(loadCourse)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const hydrate = useProgress((s) => s.hydrate)
-  const hydrated = useProgress((s) => s.hydrated)
   const replaceAll = useProgress((s) => s.replaceAll)
   const reset = useProgress((s) => s.reset)
   const state = useProgress()
-
-  useEffect(() => {
-    if (!hydrated) void hydrate()
-  }, [hydrated, hydrate])
 
   const titles = useMemo(() => {
     if (course.status !== 'ready') return new Map<string, string>()
     return new Map(course.data.lessons.map((lesson) => [lesson.id, lesson.keyIdea]))
   }, [course])
 
-  const totalLessons = course.status === 'ready' ? course.data.lessons.length : 18
+  const totalLessons =
+    course.status === 'ready' ? course.data.lessons.length : CONTENT_STATS.lessons
   const level = levelFromXp(state.xp)
   const levelFloor = xpForLevel(level)
   const levelCeiling = xpForLevel(level + 1)

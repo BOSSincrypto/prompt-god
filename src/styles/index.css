@@ -201,11 +201,21 @@
    4. Composite utilities
 --------------------------------------------------------------------------- */
 
-/** Frosted panel used by the header, command palette and sheets. */
+/**
+ * Frosted panel used by the header, bottom tab bar and command palette.
+ *
+ * 92% rather than something more transparent: these panels sit over body copy,
+ * and at lower opacity the text behind them shows through enough to hurt the
+ * contrast of the labels on top. Where no backdrop-filter is available the
+ * fallback is fully opaque rather than washed out.
+ */
 @utility glass {
-  background: color-mix(in oklab, var(--bg-raised) 76%, transparent);
-  backdrop-filter: blur(16px) saturate(1.6);
-  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  background: var(--bg-raised);
+  @supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+    background: color-mix(in oklab, var(--bg-raised) 92%, transparent);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  }
 }
 
 /** The product's signature heading treatment. Used sparingly. */

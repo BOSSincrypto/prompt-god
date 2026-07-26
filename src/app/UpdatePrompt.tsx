@@ -30,10 +30,12 @@ export default function UpdatePrompt() {
   }
 
   return (
+    // Above the mobile tab bar, and out of the reading column on desktop, so
+    // it never sits on top of the content it is interrupting.
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-20 left-1/2 z-40 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 animate-rise rounded-card border border-line glass p-4 shadow-card md:bottom-6"
+      className="glass fixed bottom-20 left-1/2 z-40 w-[min(26rem,calc(100vw-2rem))] -translate-x-1/2 animate-rise rounded-card border border-line p-4 shadow-card md:bottom-6 md:left-auto md:right-6 md:translate-x-0"
     >
       {needRefresh ? (
         <>

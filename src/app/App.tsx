@@ -1,6 +1,7 @@
 import { Component, Suspense, useEffect, type ErrorInfo, type ReactNode } from 'react'
 import { I18nProvider, useT } from '@/i18n/index.tsx'
 import { resolveTheme, usePrefs } from '@/store/prefs.ts'
+import { useProgress } from '@/store/progress.ts'
 import { Button, Page, RouteFallback } from '@/ui/primitives.tsx'
 import { AppShell } from './AppShell.tsx'
 import { RouterProvider, useRouter } from './router.tsx'
@@ -121,6 +122,15 @@ function useDocumentPrefs() {
 
 function Root() {
   useDocumentPrefs()
+
+  // Hydrated once, here, rather than by each screen that happens to read
+  // progress. Any screen that mutates progress before the stored state has
+  // been read would otherwise persist empty defaults over it.
+  const hydrate = useProgress((s) => s.hydrate)
+  useEffect(() => {
+    void hydrate()
+  }, [hydrate])
+
   return (
     <AppShell>
       <Outlet />

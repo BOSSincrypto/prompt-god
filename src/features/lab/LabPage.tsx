@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { analyze } from '@/engine/analyzer/index.ts'
+import { analyze, warmUp } from '@/engine/analyzer/index.ts'
 import { diffWords, improve, type ImproveResult } from '@/engine/improve.ts'
 import { allProfiles, type ModelFamilyId } from '@/engine/models.ts'
 import { useI18n } from '@/i18n/index.tsx'
@@ -165,6 +165,18 @@ export default function LabPage() {
   // even though a full pass is already sub-millisecond.
   const deferredText = useDeferredValue(text)
   const result = useMemo(() => analyze(deferredText, targetModel), [deferredText, targetModel])
+
+  // Pay the one-off pattern-compilation cost now rather than on the user's
+  // first keystroke. `requestIdleCallback` where it exists, so it never
+  // competes with the first paint.
+  useEffect(() => {
+    const idle =
+      window.requestIdleCallback?.bind(window) ?? ((fn: () => void) => setTimeout(fn, 200))
+    const handle = idle(() => warmUp())
+    return () => {
+      if (window.cancelIdleCallback && typeof handle === 'number') window.cancelIdleCallback(handle)
+    }
+  }, [])
 
   // One XP-bearing analysis per meaningful edit, not one per keystroke.
   const recordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)

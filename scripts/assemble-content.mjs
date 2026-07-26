@@ -80,7 +80,21 @@ const TRACK_FOR_LESSON = new Map(
   TRACKS.flatMap((track) => track.lessonIds.map((id) => [id, track.id])),
 )
 
-const VALID_BLOCK_KINDS = new Set(['p', 'h', 'list', 'note', 'code', 'compare', 'quote'])
+/**
+ * The exact field set each block kind supports. Anything else is dropped:
+ * unknown fields used to reach the generated TypeScript and fail typecheck,
+ * which is a confusing way to learn that an author invented a field.
+ */
+const BLOCK_FIELDS = {
+  p: ['kind', 'text'],
+  h: ['kind', 'text'],
+  list: ['kind', 'title', 'items', 'ordered'],
+  note: ['kind', 'tone', 'title', 'text'],
+  code: ['kind', 'text', 'caption'],
+  compare: ['kind', 'badLabel', 'bad', 'goodLabel', 'good', 'note'],
+  quote: ['kind', 'text', 'source', 'url'],
+}
+const VALID_BLOCK_KINDS = new Set(Object.keys(BLOCK_FIELDS))
 const VALID_CHECK_KINDS = new Set([
   'noFinding',
   'hasFinding',
@@ -101,25 +115,45 @@ function cleanBlocks(blocks, where) {
     note(`${where}: blocks missing`)
     return []
   }
-  return blocks.filter((block) => {
-    if (!VALID_BLOCK_KINDS.has(block?.kind)) {
-      note(`${where}: dropped block of unknown kind "${block?.kind}"`)
-      return false
+  return blocks
+    .filter((block) => {
+      if (!VALID_BLOCK_KINDS.has(block?.kind)) {
+        note(`${where}: dropped block of unknown kind "${block?.kind}"`)
+        return false
+      }
+      if (block.kind === 'compare' && (!block.bad || !block.good)) {
+        note(`${where}: dropped compare block missing a side`)
+        return false
+      }
+      if (block.kind === 'list' && !Array.isArray(block.items)) {
+        note(`${where}: dropped list block with no items`)
+        return false
+      }
+      if (block.kind === 'quote' && !block.source) {
+        note(`${where}: dropped quote with no source`)
+        return false
+      }
+      return true
+    })
+    .map((block) => pruneBlock(block, where))
+}
+
+/** Removes fields the renderer has no slot for, keeping the closest match. */
+function pruneBlock(block, where) {
+  // `caption` on a comparison means the same thing as its `note`.
+  if (block.kind === 'compare' && block.caption && !block.note) block.note = block.caption
+
+  const allowed = BLOCK_FIELDS[block.kind]
+  const out = {}
+  for (const [key, value] of Object.entries(block)) {
+    if (value === undefined || value === null) continue
+    if (!allowed.includes(key)) {
+      note(`${where}: dropped unsupported "${key}" on a ${block.kind} block`)
+      continue
     }
-    if (block.kind === 'compare' && (!block.bad || !block.good)) {
-      note(`${where}: dropped compare block missing a side`)
-      return false
-    }
-    if (block.kind === 'list' && !Array.isArray(block.items)) {
-      note(`${where}: dropped list block with no items`)
-      return false
-    }
-    if (block.kind === 'quote' && !block.source) {
-      note(`${where}: dropped quote with no source`)
-      return false
-    }
-    return true
-  })
+    out[key] = value
+  }
+  return out
 }
 
 function cleanChecks(checks, where) {

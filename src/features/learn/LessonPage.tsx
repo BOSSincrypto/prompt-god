@@ -15,16 +15,11 @@ export default function LessonPage() {
   const lessonId = params['lessonId'] ?? ''
   const course = useContent(loadCourse)
 
-  const hydrate = useProgress((s) => s.hydrate)
   const hydrated = useProgress((s) => s.hydrated)
   const completeLesson = useProgress((s) => s.completeLesson)
   const completeTrack = useProgress((s) => s.completeTrack)
   const completedLessons = useProgress((s) => s.completedLessons)
   const seedCards = useProgress((s) => s.seedCards)
-
-  useEffect(() => {
-    if (!hydrated) void hydrate()
-  }, [hydrated, hydrate])
 
   const lesson = useMemo(
     () =>

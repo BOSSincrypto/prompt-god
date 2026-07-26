@@ -28,20 +28,25 @@ This app teaches what replaced all of that.
 
 ## What's in it
 
-|                     |                                                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Course**          | 18 lessons across 6 tracks, beginner to production. Every lesson ends in a graded exercise, not a quiz.                      |
-| **Prompt Lab**      | A deterministic analyzer: paste a prompt, get a scored critique in under a millisecond. 46 rules, 9 categories, model-aware. |
-| **Pattern library** | 30 named techniques, each with the cases it helps, the cases it hurts, and a fill-in template.                               |
-| **Model matrix**    | What actually changes when you switch families — verified against vendor docs.                                               |
-| **Progress**        | XP, streaks, achievements and spaced repetition, stored only in your browser.                                                |
+|                     |                                                                                                                         |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Course**          | 19 lessons across 6 tracks, beginner to production. Every lesson ends in a graded exercise, not a quiz.                 |
+| **Prompt Lab**      | A deterministic analyzer: paste a prompt, get a scored critique. 46 rules, 9 categories, model-aware, ~0.6 ms per pass. |
+| **Pattern library** | 30 named techniques, each with the cases it helps, the cases it hurts, and a fill-in template.                          |
+| **Model matrix**    | What actually changes when you switch families — verified against vendor docs.                                          |
+| **Progress**        | XP, streaks, achievements and spaced repetition, stored only in your browser.                                           |
 
 Everything is bilingual — English and Russian — including the analyzer, which detects the prompt's
 language and applies the matching rule set.
 
 ### The analyzer
 
-The Lab does not call a model. It runs a rules engine over the prompt text:
+The Lab does not call a model. It runs a rules engine over the prompt text — a
+median of 0.6 ms per pass on a 780-character prompt, 5.9 ms on a 16,000-character
+one. The one-off cost of compiling the pattern set is paid in an idle callback
+when the Lab mounts, not on the user's first keystroke.
+
+The nine categories:
 
 - **Clarity** — vague verbs, undefined quality adjectives, hedging, self-contradiction
 - **Context** — missing audience or purpose, unfilled placeholders, references to context the model
