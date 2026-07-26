@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { Component, lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useT } from '@/i18n/index.tsx'
 import { cx } from '@/lib/cx.ts'
 import { usePrefs } from '@/store/prefs.ts'
@@ -8,6 +8,28 @@ import { NAV_ROUTES } from './routes.ts'
 
 const CommandPalette = lazy(() => import('./CommandPalette.tsx'))
 const UpdatePrompt = lazy(() => import('./UpdatePrompt.tsx'))
+
+/**
+ * Contains a failed lazy chunk instead of letting it reach the app-wide
+ * boundary. A stale service worker after a deploy can make any chunk fetch
+ * fail; losing the whole page because an update toast could not load is a
+ * wildly disproportionate outcome for what these two overlays do.
+ */
+class Optional extends Component<{ children: ReactNode }, { failed: boolean }> {
+  override state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  override componentDidCatch(error: Error) {
+    console.warn('[prompt-god] optional overlay failed to load', error)
+  }
+
+  override render() {
+    return this.state.failed ? null : this.props.children
+  }
+}
 
 /**
  * True on Apple platforms, where the palette shortcut is ⌘K rather than Ctrl+K.
@@ -218,14 +240,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       </nav>
 
       {paletteOpen && (
-        <Suspense fallback={null}>
-          <CommandPalette onClose={() => setPaletteOpen(false)} />
-        </Suspense>
+        <Optional>
+          <Suspense fallback={null}>
+            <CommandPalette onClose={() => setPaletteOpen(false)} />
+          </Suspense>
+        </Optional>
       )}
 
-      <Suspense fallback={null}>
-        <UpdatePrompt />
-      </Suspense>
+      <Optional>
+        <Suspense fallback={null}>
+          <UpdatePrompt />
+        </Suspense>
+      </Optional>
     </div>
   )
 }

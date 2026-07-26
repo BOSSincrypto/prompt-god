@@ -171,18 +171,38 @@ const TODO: Record<string, { label: Record<Locale, string>; example: Record<Loca
 }
 
 /**
+ * A decorative emphasis label: a line that opens with "CRITICAL:", "IMPORTANT
+ * —", "ВАЖНО:" and then gets on with the instruction. Deleting that prefix
+ * removes only the shouting.
+ */
+const EMPHASIS_LABEL =
+  /^[ \t]*(?:critical|important|urgent|note|warning|attention|важно|критически важно|критично|внимание|срочно)[ \t]*[:\-—–][ \t]*/gim
+
+/**
  * Strips text that current models read as pressure rather than instruction.
  *
- * Note what this does NOT do: it leaves capitalisation alone. An earlier
- * version sentence-cased runs of capitals to defuse shouting, and happily
- * rewrote `SELECT Name FROM Customers` into `Select Name From Customers`. The
- * analyzer still reports the shouting; the rewriter refuses to corrupt code to
- * fix a cosmetic problem.
+ * Note what this does NOT do.
+ *
+ * It leaves capitalisation alone. An earlier version sentence-cased runs of
+ * capitals to defuse shouting and rewrote `SELECT Name FROM Customers` into
+ * `Select Name From Customers`.
+ *
+ * It also no longer deletes emphasis vocabulary wherever it appears. The
+ * shouting lexicon is ordinary words — "critical", "mandatory", "you must",
+ * "under no circumstances" — and removing them mid-sentence destroys meaning:
+ * "the critical path" became "the path", "every mandatory field" became "every
+ * field", and "Under no circumstances should you invent numbers" became
+ * "should you invent numbers", inverting a prohibition into an instruction.
+ * Only a decorative label at the start of a line is safe to remove.
+ *
+ * The `anti-laziness-pressure` finding still reports the rest, which is the
+ * right division of labour: the analyzer says what to reword, and the rewriter
+ * only makes edits it can prove are meaning-preserving.
  */
 function stripNoise(text: string, lang: TextLang): string {
   return text
     .replace(globalize(lex('politeness', lang)), '')
-    .replace(globalize(lex('shouting', lang)), '')
+    .replace(EMPHASIS_LABEL, '')
     .replace(/!{2,}/g, '.')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/[ \t]+\n/g, '\n')

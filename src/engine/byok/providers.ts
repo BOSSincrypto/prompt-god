@@ -315,9 +315,21 @@ export async function* streamCompletion(
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
   let buffer = ''
 
+  // An abort before the fetch resolves is converted above; an abort *during*
+  // the read rejects with a raw DOMException, which sailed past every
+  // `instanceof ProviderError` check and surfaced as a red error banner when
+  // the user pressed Stop.
+  const abortAware = <T>(work: Promise<T>) =>
+    work.catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new ProviderError('Aborted', 'aborted')
+      }
+      throw error
+    })
+
   try {
     for (;;) {
-      const { done, value } = await reader.read()
+      const { done, value } = await abortAware(reader.read())
       if (done) break
       buffer += value
 

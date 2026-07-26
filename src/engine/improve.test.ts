@@ -181,3 +181,58 @@ describe('improve regressions', () => {
     for (let i = 0; i < 5; i++) expect(improve(original).text).toBe(first)
   })
 })
+
+describe('emphasis is never removed from mid-sentence', () => {
+  // The shouting lexicon is ordinary vocabulary. Deleting it wherever it
+  // appeared destroyed meaning, and in the prohibition case inverted it.
+  it.each([
+    [
+      'CRITICAL: explain the critical path of the project plan!! You must list every dependency.',
+      ['critical path', 'You must list'],
+    ],
+    [
+      'It is crucial that you flag every mandatory field in the intake form!! Return a table.',
+      ['crucial', 'mandatory field'],
+    ],
+    [
+      'Under no circumstances should you invent numbers. Critical: the audit fields must appear!!',
+      ['Under no circumstances should you invent numbers'],
+    ],
+  ])('keeps the meaning of %j', (input, mustSurvive) => {
+    const { text } = improve(input)
+    for (const fragment of mustSurvive) expect(text).toContain(fragment)
+  })
+
+  it('keeps Russian emphasis that carries meaning', () => {
+    const { text } = improve(
+      'Это критично для расчёта маржи!! Обязательно перечисли все статьи расходов таблицей.',
+      'generic',
+      'ru',
+    )
+    expect(text).toContain('критично для расчёта маржи')
+    expect(text).toContain('Обязательно перечисли')
+  })
+
+  it('still removes a decorative label at the start of a line', () => {
+    // The rewriter only edits when the analyzer raised a finding, so the input
+    // has to actually be shouting — a bare "IMPORTANT:" is not, and correctly
+    // comes back untouched.
+    const { text } = improve(
+      'CRITICAL: summarise the incident report below for the on-call handover!! 100 words.',
+    )
+    expect(text).not.toMatch(/^CRITICAL:/m)
+    expect(text).toContain('summarise the incident report')
+  })
+
+  it('leaves a prompt alone when there is no finding to act on', () => {
+    const original = 'IMPORTANT: summarise the incident report below in 100 words as a bullet list.'
+    expect(improve(original).text).toBe(original)
+  })
+
+  it('never inverts a prohibition', () => {
+    const original = 'Never invent figures!! Under no circumstances should you round the totals.'
+    const { text } = improve(original)
+    expect(text).toContain('Never invent figures')
+    expect(text).toContain('Under no circumstances')
+  })
+})

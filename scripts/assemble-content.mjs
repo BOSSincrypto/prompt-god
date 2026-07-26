@@ -213,14 +213,19 @@ async function main() {
     if (Array.isArray(unit.notes)) modelNotes.push(...unit.notes)
   }
 
+  // A lesson in no track has no `trackId`, which the renderer needs and the
+  // type demands. Dropping it here beats emitting content that fails typecheck.
+  const orphans = lessons.filter((lesson) => !TRACK_FOR_LESSON.has(lesson.id))
+  for (const orphan of orphans) {
+    note(`lesson "${orphan.id}": not listed in any track — dropped`)
+  }
+  const placed = lessons.filter((lesson) => TRACK_FOR_LESSON.has(lesson.id))
+  lessons.length = 0
+  lessons.push(...placed)
+
   for (const lesson of lessons) {
     const where = `lesson "${lesson.id}"`
-    const trackId = TRACK_FOR_LESSON.get(lesson.id)
-    if (!trackId) {
-      note(`${where}: not listed in any track — it will not appear in the course`)
-      continue
-    }
-    lesson.trackId = trackId
+    lesson.trackId = TRACK_FOR_LESSON.get(lesson.id)
     lesson.blocksEn = cleanBlocks(lesson.blocksEn, `${where} (en)`)
     lesson.blocksRu = cleanBlocks(lesson.blocksRu, `${where} (ru)`)
     if (lesson.blocksRu.length !== lesson.blocksEn.length) {

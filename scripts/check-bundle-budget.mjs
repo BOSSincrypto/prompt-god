@@ -58,7 +58,15 @@ async function main() {
   const cssRefs = new Set()
   for (const m of html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)) cssRefs.add(m[1])
 
-  const toPath = (ref) => resolve(dist, ref.replace(/^\//, ''))
+  // Asset refs are absolute against the site's base, which is not always `/`
+  // — `BASE_PATH=/prompt-god/` emits `/prompt-god/assets/…`. Stripping only the
+  // leading slash then pointed at `dist/prompt-god/assets/…`, which does not
+  // exist, and the script died on the first read.
+  const base = process.env.BASE_PATH ?? '/'
+  const toPath = (ref) => {
+    const withoutBase = ref.startsWith(base) ? ref.slice(base.length) : ref.replace(/^\//, '')
+    return resolve(dist, withoutBase)
+  }
 
   let initialJs = 0
   for (const ref of entryRefs) initialJs += await gzippedSize(toPath(ref))

@@ -34,11 +34,11 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Build
-        run: npm run build:only
-
-      - name: Bundle budget
-        run: npm run budget
+      # The full gate, not just a build. `build:only` skips typecheck, so a
+      # deploy that ran it alone could publish code that CI would have rejected
+      # — and nothing made this job wait for CI either.
+      - name: Verify
+        run: npm run verify
 
       - name: SPA fallback
         # GitHub Pages serves 404.html for unknown paths; the app's client-side
